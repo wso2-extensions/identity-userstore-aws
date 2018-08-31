@@ -114,20 +114,17 @@ public class AWSUserStoreProperties {
         }
         Property property = new Property(name, value, propertyDescription, null);
         AWS_MANDATORY_PROPERTIES.add(property);
-
     }
 
     private static void setProperty(String name, String displayName, String value, String description) {
 
         Property property = new Property(name, value, displayName + "#" + description, null);
         AWS_OPTIONAL_PROPERTIES.add(property);
-
     }
 
     private static void setAdvancedProperty(String name, String value) {
 
         Property property = new Property(name, value, "", null);
         AWS_ADVANCED_PROPERTIES.add(property);
-
     }
 }

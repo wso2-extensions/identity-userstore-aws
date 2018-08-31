@@ -86,7 +86,6 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
     private String typedLinkFacetName;
     // Specifies the Password Hashing Algorithm used the hash the password before storing in the userstore.
     private String passwordHashMethod;
-    private boolean debug = log.isDebugEnabled();
 
     public AWSUserStoreManager() {
 
@@ -126,7 +125,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
 
         this(realmConfig, tenantId);
 
-        if (debug) {
+        if (log.isDebugEnabled()) {
             log.debug("AWS Userstore manager initialization Started " + System.currentTimeMillis());
         }
         this.claimManager = claimManager;
@@ -148,7 +147,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
 
         properties.put(UserCoreConstants.DATA_SOURCE, dataSource);
 
-        if (debug) {
+        if (log.isDebugEnabled()) {
             log.debug("The AWSDataSource being used by AWSUserStoreManager :: " + dataSource.hashCode());
         }
         domain = realmConfig.getUserStoreProperty(UserCoreConstants.RealmConfig.PROPERTY_DOMAIN_NAME);
@@ -156,7 +155,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
          * Initialize user roles cache as implemented in AbstractUserStoreManager
          */
         initUserRolesCache();
-        if (debug) {
+        if (log.isDebugEnabled()) {
             log.debug("AWS UserStore manager initialization Ended " + System.currentTimeMillis());
         }
     }
@@ -164,31 +163,23 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
     /**
      * Checks if the role is existing the role store.
      *
-     * @param roleNameWithTenantDomain Rolename with tenant domain.
+     * @param roleName Rolename.
      * @return Whether the role is existing in role store or not.
      * @throws UserStoreException If error occurred.
      */
     @Override
-    protected boolean doCheckExistingRole(String roleNameWithTenantDomain) throws UserStoreException {
+    protected boolean doCheckExistingRole(String roleName) throws UserStoreException {
 
-        RoleContext roleContext = createRoleContext(roleNameWithTenantDomain);
-        String roleName = roleContext.getRoleName();
-        String nextToken = null;
-        do {
-            JSONObject childObject = awsActions.listObjectChildren(nextToken, pathToRoles);
-            Object token = childObject.get(AWSConstants.NEXT_TOKEN);
-            nextToken = (token != null) ? token.toString() : null;
-            if (childObject.get(AWSConstants.CHILDREN) != null) {
-                JSONObject childrens = (JSONObject) childObject.get(AWSConstants.CHILDREN);
-                for (Object key : childrens.keySet()) {
-                    if (key.equals(roleName)) {
-                        return true;
-                    }
-                }
-            }
-        } while (StringUtils.isNotEmpty(nextToken));
-
-        return false;
+        RoleContext roleContext = createRoleContext(roleName);
+        roleName = roleContext.getRoleName();
+        if (log.isDebugEnabled()) {
+            log.debug("Searching for role " + roleName);
+        }
+        boolean isExistingRole = checkExistenceOfUserOrRole(pathToRoles, roleName);
+        if (log.isDebugEnabled()) {
+            log.debug("Role: " + roleName + " is exists in user store");
+        }
+        return isExistingRole;
     }
 
     /**
@@ -235,23 +226,22 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
 
         map.put(userNameAttribute, userName);
         map.put(passwordAttribute, new String(passwordToStore));
-        int statusCode = awsActions.createObject(userName, facetNameOfUser, pathToUsers, map);
-        if (statusCode == HttpStatus.SC_OK) {
-            if (debug) {
-                log.debug(String.format("Added user: %s  successfully", userName));
-            }
-        } else {
-            handleException("User is added. But error while updating role list of user : " + userName);
-        }
-
-        if (roleList != null && roleList.length > 0) {
-            /* update the user roles */
-            String[] users = {userName};
-            // Add roles to user.
-            addUsersToRoleList(users, roleList);
+        boolean hasRoles = roleList != null && roleList.length > 0;
+        if (membershipType.equals(AWSConstants.ATTRIBUTE) && hasRoles) {
+            map.put(membershipAttribute, String.join(",", roleList));
         }
         if (MapUtils.isNotEmpty(claims)) {
-            doSetUserClaimValues(userName, claims, profileName);
+            Map<String, String> claimList = getClaimAttributes(userName, claims);
+            map.putAll(claimList);
+        }
+        if (awsActions.createObject(userName, facetNameOfUser, pathToUsers, map) == HttpStatus.SC_OK) {
+            if (log.isDebugEnabled()) {
+                log.debug(String.format("Added user: %s  successfully", userName));
+            }
+        }
+        if (hasRoles) {
+            // Add roles to user.
+            addRolesToUser(userName, roleList);
         }
     }
 
@@ -279,11 +269,9 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
             String identifier = "$" + detachObject.get(AWSConstants.DETACHED_OBJECT_IDENTIFIER).toString();
             // Delete object from directory.
             if (awsActions.deleteObject(identifier) == HttpStatus.SC_OK) {
-                if (debug) {
+                if (log.isDebugEnabled()) {
                     log.debug("Deleted user " + userName + " successfully");
                 }
-            } else {
-                handleException("Error occurred while deleting the user : " + userName);
             }
         }
     }
@@ -294,7 +282,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      * @param userName User name.
      * @throws UserStoreException If any error occur.
      */
-    private void removeUserFromRoles(String userName) throws UserStoreException {
+    protected void removeUserFromRoles(String userName) throws UserStoreException {
 
         Map<String, String> map = new HashMap<>();
         String nextToken = null;
@@ -315,7 +303,6 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
                         map.put(memberOfAttribute, String.join(",", updatedUserList));
                         awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfRole, keyValue
                                 , map);
-                        map.clear();
                     }
                 }
             }
@@ -328,7 +315,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      * @param outgoingTypedLinks Outgoing links.
      * @throws UserStoreException If any error occur.
      */
-    private void detachOutgoingTypedLinks(JSONObject outgoingTypedLinks) throws UserStoreException {
+    protected void detachOutgoingTypedLinks(JSONObject outgoingTypedLinks) throws UserStoreException {
 
         Object specifiers = outgoingTypedLinks.get(AWSConstants.TYPEDLINK_SPECIFIERS);
         JSONArray typedLinkSpecifiers = (specifiers != null) ? (JSONArray) specifiers : null;
@@ -384,11 +371,9 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         map.put(passwordAttribute, new String(passwordToStore));
         if (awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfUser, pathToUsers + "/"
                 + userName, map) == HttpStatus.SC_OK) {
-            if (debug) {
+            if (log.isDebugEnabled()) {
                 log.debug("Credential updated successfully for user " + userName);
             }
-        } else {
-            handleException("Error occurred while updating the credential");
         }
     }
 
@@ -402,21 +387,35 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
     @Override
     protected boolean doCheckExistingUser(String userName) throws UserStoreException {
 
-        if (debug) {
+        if (log.isDebugEnabled()) {
             log.debug("Searching for user " + userName);
         }
+        boolean isExistingUser = checkExistenceOfUserOrRole(pathToUsers, userName);
+        if (log.isDebugEnabled()) {
+            log.debug("User: " + userName + " is exists in user store");
+        }
+        return isExistingUser;
+    }
+
+    /**
+     * Check whether the user/role object exist in user store or not.
+     *
+     * @param selector Path of object in tree structure.
+     * @param name     Name of the object.
+     * @return Boolean.
+     * @throws UserStoreException if any exception occurred.
+     */
+    private boolean checkExistenceOfUserOrRole(String selector, String name) throws UserStoreException {
+
         String nextToken = null;
         do {
-            JSONObject objectChildrens = awsActions.listObjectChildren(nextToken, pathToUsers);
+            JSONObject objectChildrens = awsActions.listObjectChildren(nextToken, selector);
             Object token = objectChildrens.get(AWSConstants.NEXT_TOKEN);
             nextToken = (token != null) ? token.toString() : null;
             if (objectChildrens.get(AWSConstants.CHILDREN) != null) {
                 JSONObject childrens = (JSONObject) objectChildrens.get(AWSConstants.CHILDREN);
                 for (Object key : childrens.keySet()) {
-                    if (key.equals(userName)) {
-                        if (debug) {
-                            log.debug("User: " + userName + " is exists in user store");
-                        }
+                    if (key.equals(name)) {
                         return true;
                     }
                 }
@@ -444,18 +443,18 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         }
         Map<String, String> map = new HashMap<>();
         map.put(roleNameAttribute, roleName);
+        boolean hasUsers = userList != null && userList.length > 0;
+        if (membershipType.equals(AWSConstants.ATTRIBUTE) && hasUsers) {
+            map.put(memberOfAttribute, String.join(",", userList));
+        }
         if (awsActions.createObject(roleName, facetNameOfRole, pathToRoles, map) == HttpStatus.SC_OK) {
-            if (debug) {
+            if (log.isDebugEnabled()) {
                 log.debug("Role: " + roleName + " is added successfully");
             }
-        } else {
-            handleException("Error while adding the role : " + roleName);
         }
-
-        if (userList != null && userList.length > 0) {
-            String[] roleList = {roleName};
+        if (hasUsers) {
             // Add users to role.
-            addUsersToRoleList(userList, roleList);
+            addUsersToRole(userList, roleName);
         }
     }
 
@@ -483,11 +482,9 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
             String identifier = "$" + detachObject.get(AWSConstants.DETACHED_OBJECT_IDENTIFIER).toString();
             // Delete object from directory.
             if (awsActions.deleteObject(identifier) == HttpStatus.SC_OK) {
-                if (debug) {
+                if (log.isDebugEnabled()) {
                     log.debug("Deleted role " + roleName + " successfully");
                 }
-            } else {
-                handleException("Error occurred while deleting the role : " + roleName);
             }
         }
     }
@@ -498,7 +495,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      * @param roleName Role name.
      * @throws UserStoreException if any exception occurred.
      */
-    private void removeRoleFromUsers(String roleName) throws UserStoreException {
+    protected void removeRoleFromUsers(String roleName) throws UserStoreException {
 
         Map<String, String> map = new HashMap<>();
         String nextToken = null;
@@ -509,16 +506,14 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
             if (objectChildrens.get(AWSConstants.CHILDREN) != null) {
                 JSONObject childrens = (JSONObject) objectChildrens.get(AWSConstants.CHILDREN);
                 for (Object key : childrens.keySet()) {
-                    String keyValue = pathToUsers + "/" + key.toString();
-                    String existingRoles = getAttributeValue(facetNameOfUser, keyValue, membershipAttribute);
+                    String value = pathToUsers + "/" + key.toString();
+                    String existingRoles = getAttributeValue(facetNameOfUser, value, membershipAttribute);
                     if (StringUtils.isNotEmpty(existingRoles) && existingRoles.contains(roleName)) {
                         List<String> updatedRoleList = new LinkedList<>(Arrays.asList(existingRoles.split(",")));
                         updatedRoleList.remove(roleName);
 
                         map.put(membershipAttribute, String.join(",", updatedRoleList));
-                        awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfUser, keyValue,
-                                map);
-                        map.clear();
+                        awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfUser, value, map);
                     }
                 }
             }
@@ -531,7 +526,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      * @param incomingTypedLinks Incoming TypedLinks.
      * @throws UserStoreException if any exception occurred.
      */
-    private void detachIncomingTypedLinks(JSONObject incomingTypedLinks) throws UserStoreException {
+    protected void detachIncomingTypedLinks(JSONObject incomingTypedLinks) throws UserStoreException {
 
         Object specifiers = incomingTypedLinks.get(AWSConstants.LINK_SPECIFIERS);
         JSONArray linkSpecifiers = (specifiers != null) ? (JSONArray) specifiers : null;
@@ -577,7 +572,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         /* Add new role and Add users to the new role
            Since AWS user store does not support for shared roles, setting to false*/
         doAddRole(newRoleName, users, false);
-        if (debug) {
+        if (log.isDebugEnabled()) {
             log.debug(String.format("Successfully updated the role: %s", roleName));
         }
     }
@@ -597,7 +592,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         if (StringUtils.isEmpty(userName) || credential == null) {
             return false;
         }
-        if (debug) {
+        if (log.isDebugEnabled()) {
             log.debug("Authenticating user " + userName);
         }
         String selector = pathToUsers + "/" + userName;
@@ -605,7 +600,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         byte[] password = UserCoreUtil.getPasswordToStore(credential, passwordHashMethod, false);
         boolean isAuthed = (storedPassword != null) && (storedPassword.equals(new String(password)));
         if (isAuthed) {
-            if (debug) {
+            if (log.isDebugEnabled()) {
                 log.debug(String.format("Successfully authenticated user: %s, status: %s", userName, true));
             }
         } else {
@@ -636,7 +631,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         } catch (Exception e) {
             givenMax = UserCoreConstants.MAX_USER_ROLE_LIST;
 
-            if (debug) {
+            if (log.isDebugEnabled()) {
                 log.debug("Realm configuration maximum not set : Using User Core Constant value instead!", e);
             }
         }
@@ -665,7 +660,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      * @param filter Pattern.
      * @return Whether the provided text is matched against the pattern or not.
      */
-    private boolean matchFilter(String text, String filter) {
+    protected boolean matchFilter(String text, String filter) {
 
         if (text == null || filter == null) return true;
 
@@ -708,7 +703,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         } catch (Exception e) {
             givenMax = UserCoreConstants.MAX_USER_ROLE_LIST;
 
-            if (debug) {
+            if (log.isDebugEnabled()) {
                 log.debug("Realm configuration maximum not set : Using User Core Constant value instead!", e);
             }
         }
@@ -739,7 +734,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      * @return List of children
      * @throws UserStoreException If error occurred.
      */
-    private List<String> getAllChildrens(String selector, String filter) throws UserStoreException {
+    protected List<String> getAllChildrens(String selector, String filter) throws UserStoreException {
 
         String nextToken = null;
         String name;
@@ -806,7 +801,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      * @param selector Path of an object in the tree structure.
      * @return List of users.
      */
-    private List<String> getUserListOfRoleByLink(String selector, String filter) throws UserStoreException {
+    protected List<String> getUserListOfRoleByLink(String selector, String filter) throws UserStoreException {
 
         JSONObject links = awsActions.listIncomingTypedLinks(typedLinkFacetName, selector);
         List<String> tempList = new LinkedList<>();
@@ -874,7 +869,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      * @param filter             To filter the search.
      * @return List of roles.
      */
-    private List<String> getRoleListOfUserByLink(JSONObject outgoingTypedLinks, String filter) {
+    protected List<String> getRoleListOfUserByLink(JSONObject outgoingTypedLinks, String filter) {
 
         List<String> tempList = new LinkedList<>();
         JSONArray linkSpecifiers = (JSONArray) outgoingTypedLinks.get(AWSConstants.TYPEDLINK_SPECIFIERS);
@@ -925,15 +920,14 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
                 removeRolesFromUser(userName, deletedRoles);
             }
         }
-        if (debug) {
+        if (log.isDebugEnabled()) {
             log.debug(String.format("Roles are un assigned from user: %s successfully.", userName));
         }
         if (newRoles != null && newRoles.length > 0) {
-            String[] userList = {userName};
             // Update role list of user.
-            addUsersToRoleList(userList, newRoles);
+            updateRolesListOfUser(userName, newRoles);
         }
-        if (debug) {
+        if (log.isDebugEnabled()) {
             log.debug(String.format("New roles are assign to user: %s successfully.", userName));
         }
     }
@@ -945,7 +939,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      * @param deletedRoles List of roles to remove from user.
      * @throws UserStoreException If error occurred.
      */
-    private void removeRolesFromUser(String userName, String[] deletedRoles) throws UserStoreException {
+    protected void removeRolesFromUser(String userName, String[] deletedRoles) throws UserStoreException {
 
         Map<String, String> map = new HashMap<>();
         String selector = pathToUsers + "/" + userName;
@@ -956,7 +950,6 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
 
             map.put(membershipAttribute, String.join(",", list));
             awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfUser, selector, map);
-            map.clear();
         }
     }
 
@@ -967,7 +960,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      * @param userName User name.
      * @throws UserStoreException If error occurred.
      */
-    private void removeUserFromRoleByAttribute(String selector, String userName) throws UserStoreException {
+    protected void removeUserFromRoleByAttribute(String selector, String userName) throws UserStoreException {
 
         Map<String, String> map = new HashMap<>();
         String existingUsers = getAttributeValue(facetNameOfRole, selector, memberOfAttribute);
@@ -977,7 +970,6 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
 
             map.put(memberOfAttribute, String.join(",", list));
             awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfRole, selector, map);
-            map.clear();
         }
     }
 
@@ -988,7 +980,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      * @param userName User name.
      * @throws UserStoreException If error occurred.
      */
-    private void removeUserFromRoleByLink(String selector, String userName) throws UserStoreException {
+    protected void removeUserFromRoleByLink(String selector, String userName) throws UserStoreException {
 
         JSONObject incomingTypedLinks = awsActions.listIncomingTypedLinks(typedLinkFacetName, selector);
         Object object = incomingTypedLinks.get(AWSConstants.LINK_SPECIFIERS);
@@ -1016,7 +1008,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      * @param userName                User name.
      * @return Boolean.
      */
-    private boolean isUserNameExistInLink(JSONArray identityAttributeValues, String userName) {
+    protected boolean isUserNameExistInLink(JSONArray identityAttributeValues, String userName) {
 
         for (Object attribute : identityAttributeValues) {
             JSONObject key = (JSONObject) attribute;
@@ -1061,19 +1053,17 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
 
                     map.put(memberOfAttribute, String.join(",", list));
                     awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfRole, selector, map);
-                    map.clear();
                 }
             }
         }
-        if (debug) {
+        if (log.isDebugEnabled()) {
             log.debug(String.format("Users are un assigned from role: %s successfully.", roleName));
         }
         if (newUsers != null && newUsers.length > 0) {
-            String[] roleList = {roleName};
             // Update user list of role.
-            addUsersToRoleList(newUsers, roleList);
+            updateUserListOfRole(newUsers, roleName);
         }
-        if (debug) {
+        if (log.isDebugEnabled()) {
             log.debug(String.format("New users are assign to role: %s successfully.", roleName));
         }
     }
@@ -1085,7 +1075,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      * @param roleName Role name.
      * @throws UserStoreException If error occurred.
      */
-    private void removeRoleFromUserByAttribute(String selector, String roleName) throws UserStoreException {
+    protected void removeRoleFromUserByAttribute(String selector, String roleName) throws UserStoreException {
 
         Map<String, String> map = new HashMap<>();
         String existingRoles = getAttributeValue(facetNameOfUser, selector, membershipAttribute);
@@ -1095,7 +1085,6 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
 
             map.put(membershipAttribute, String.join(",", list));
             awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfUser, selector, map);
-            map.clear();
         }
     }
 
@@ -1106,7 +1095,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      * @param roleName Role name.
      * @throws UserStoreException If error occurred.
      */
-    private void removeRoleFromUserByLink(String selector, String roleName) throws UserStoreException {
+    protected void removeRoleFromUserByLink(String selector, String roleName) throws UserStoreException {
 
         JSONObject outgoingTypedLinks = awsActions.listOutgoingTypedLinks(typedLinkFacetName, selector);
         if (outgoingTypedLinks.get(AWSConstants.TYPEDLINK_SPECIFIERS) != null) {
@@ -1134,7 +1123,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      * @param identityAttributeValues Attributes list.
      * @return Boolean.
      */
-    private boolean isRoleNameExistInLink(JSONArray identityAttributeValues, String roleName) {
+    protected boolean isRoleNameExistInLink(JSONArray identityAttributeValues, String roleName) {
 
         for (Object attribute : identityAttributeValues) {
             JSONObject key = (JSONObject) attribute;
@@ -1221,7 +1210,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      * @param value     of property name.
      * @throws UserStoreException If error occurred.
      */
-    private void getUserList(Set<String> userList, JSONObject childrens, String property, String value)
+    protected void getUserList(Set<String> userList, JSONObject childrens, String property, String value)
             throws UserStoreException {
 
         if (childrens != null) {
@@ -1427,10 +1416,9 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
             throw new UserStoreException(AWSConstants.ERROR_WHILE_GETTING_CLAIM_ATTRIBUTE + userName, e);
         }
 
-        if (debug) {
-            log.debug(String.format("Processing user claim with Claim URI: %s", claimURI));
-            log.debug("Mapped attribute: " + attributeName);
-            log.debug("Attribute value: " + claimValue);
+        if (log.isDebugEnabled()) {
+            log.debug(String.format("Processing user claim with Claim URI: %s. Mapped attribute: %s. " +
+                    "Attribute value: %s", claimURI, attributeName, claimValue));
         }
         map.put(attributeName, claimValue);
         JSONObject objectAttributes = awsActions.listFacetAttributes(facetNameOfUser);
@@ -1441,11 +1429,9 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
 
         if (awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfUser,
                 pathToUsers + "/" + userName, map) == HttpStatus.SC_OK) {
-            if (debug) {
+            if (log.isDebugEnabled()) {
                 log.debug(String.format("Successfully updated the user claim with claimURI: %s", claimURI));
             }
-        } else {
-            handleException(String.format("Error while setting the user claim with claimURI: %s", claimURI));
         }
     }
 
@@ -1461,14 +1447,34 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
     public void doSetUserClaimValues(String userName, Map<String, String> claims, String profileName)
             throws UserStoreException {
 
-        if (debug) {
+        Map<String, String> map = getClaimAttributes(userName, claims);
+        if (awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfUser,
+                pathToUsers + "/" + userName, map) == HttpStatus.SC_OK) {
+            if (log.isDebugEnabled()) {
+                log.debug(String.format("Successfully updated the user claims: %s", claims.toString()));
+            }
+        }
+    }
+
+    /**
+     * Get user claim values of registered user.
+     *
+     * @param userName Username.
+     * @param claims   of user to set.
+     * @return claim values.
+     * @throws UserStoreException if any error occurred.
+     */
+    private Map<String, String> getClaimAttributes(String userName, Map<String, String> claims)
+            throws UserStoreException {
+
+        if (log.isDebugEnabled()) {
             log.debug("Processing user claims");
         }
         JSONObject objectAttributes = awsActions.listFacetAttributes(facetNameOfUser);
         Map<String, String> map = new HashMap<>();
         List<String> attributes = new LinkedList<>();
         for (Map.Entry<String, String> entry : claims.entrySet()) {
-            // needs to get attribute name from claim mapping
+            // Needs to get attribute name from claim mapping
             String claimURI = entry.getKey();
             String attributeName;
             try {
@@ -1476,10 +1482,9 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
             } catch (org.wso2.carbon.user.api.UserStoreException e) {
                 throw new UserStoreException(AWSConstants.ERROR_WHILE_GETTING_CLAIM_ATTRIBUTE + userName, e);
             }
-            if (debug) {
-                log.debug("Claim URI: " + claimURI);
-                log.debug("Mapped attribute: " + attributeName);
-                log.debug("Attribute value: " + claims.get(entry.getKey()));
+            if (log.isDebugEnabled()) {
+                log.debug(String.format("Claim URI: %s. Mapped attribute: %s. Attribute value: %s", claimURI,
+                        attributeName, claims.get(entry.getKey())));
             }
             map.put(attributeName, claims.get(entry.getKey()));
             boolean isFacetExist = isFacetAttributeExist(attributeName, objectAttributes);
@@ -1490,14 +1495,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         if (!attributes.isEmpty()) {
             awsActions.updateFacet(facetNameOfUser, attributes);
         }
-        if (awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfUser,
-                pathToUsers + "/" + userName, map) == HttpStatus.SC_OK) {
-            if (debug) {
-                log.debug(String.format("Successfully updated the user claims: %s", claims.toString()));
-            }
-        } else {
-            handleException("Error while setting the user claims");
-        }
+        return map;
     }
 
     /**
@@ -1521,11 +1519,9 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         map.put(attributeName, null);
         if (awsActions.updateObjectAttributes(AWSConstants.DELETE, facetNameOfUser, pathToUsers + "/"
                 + userName, map) == HttpStatus.SC_OK) {
-            if (debug) {
+            if (log.isDebugEnabled()) {
                 log.debug(String.format("Successfully deleted user claim with claimURI: %s", claimURI));
             }
-        } else {
-            handleException("Error while deleting the user claims");
         }
     }
 
@@ -1618,7 +1614,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         if (propertyNames == null) {
             return map;
         }
-        if (debug) {
+        if (log.isDebugEnabled()) {
             log.debug("Requesting attributes :" + Arrays.toString(propertyNames));
         }
         String[] propertyNamesSorted = propertyNames.clone();
@@ -1644,7 +1640,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      *
      * @throws UserStoreException If error occurred.
      */
-    private void setUpAWSDirectory() throws UserStoreException {
+    protected void setUpAWSDirectory() throws UserStoreException {
 
         pathToUsers = realmConfig.getUserStoreProperty(AWSConstants.PATH_TO_USERS);
         pathToRoles = realmConfig.getUserStoreProperty(AWSConstants.PATH_TO_ROLES);
@@ -1691,7 +1687,6 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
             if (objectInfo == null) {
                 map.put(AWSConstants.NAME, objectName);
                 awsActions.createObject(objectName, groupFacetName, parentPath, map);
-                map.clear();
             }
         }
         typedLinkFacetName = AWSConstants.USER_ROLE_ASSOCIATION;
@@ -1718,41 +1713,110 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         objectsPath.add(path);
     }
 
+    protected void addUsersToRole(String[] userList, String roleName) throws UserStoreException {
+
+        Map<String, String> map = new HashMap<>();
+        String targetSelector = pathToRoles + "/" + roleName;
+        for (String userName : userList) {
+            String sourceSelector = pathToUsers + "/" + userName;
+            if (AWSConstants.LINK.equals(membershipType)) {
+                map.put(userNameAttribute, userName);
+                map.put(roleNameAttribute, roleName);
+                awsActions.attachTypedLink(sourceSelector, targetSelector, typedLinkFacetName, map);
+            } else if (membershipType.equals(AWSConstants.ATTRIBUTE)) {
+                String[] roleList = {roleName};
+                updateUserWithRoles(roleList, userName);
+            }
+        }
+        if (log.isDebugEnabled()) {
+            log.debug(String.format("Users: %s are added to role: %s successfully", Arrays.toString(userList),
+                    roleName));
+        }
+    }
+
+    /**
+     * Assign role list to user.
+     *
+     * @param userName User name.
+     * @param roleList Role list.
+     * @throws UserStoreException If error occurred.
+     */
+    protected void addRolesToUser(String userName, String[] roleList) throws UserStoreException {
+
+        String sourceSelector = pathToUsers + "/" + userName;
+        for (String role : roleList) {
+            String targetSelector = pathToRoles + "/" + role;
+            assignUserToRole(userName, role, sourceSelector, targetSelector);
+        }
+        if (log.isDebugEnabled()) {
+            log.debug(String.format("Roles: %s are added to user: %s successfully", Arrays.toString(roleList),
+                    userName));
+        }
+    }
+
+    /**
+     * Map the role to user list.
+     *
+     * @param userList The username of the user the roles need to be added to.
+     * @param roleName The list of roles that needs to be mapped against the user.
+     * @throws UserStoreException If error occurred.
+     */
+    protected void updateUserListOfRole(String[] userList, String roleName) throws UserStoreException {
+
+        addUsersToRole(userList, roleName);
+        if (membershipType.equals(AWSConstants.ATTRIBUTE)) {
+            updateRoleWithUsers(userList, roleName);
+        }
+        if (log.isDebugEnabled()) {
+            log.debug(String.format("Users: %s are added to role: %s successfully", Arrays.toString(userList),
+                    roleName));
+        }
+    }
+
+    private void updateRoleWithUsers(String[] userList, String roleName) throws UserStoreException {
+
+        Map<String, String> map = new HashMap<>();
+        String targetSelector = pathToRoles + "/" + roleName;
+        StringBuilder users = new StringBuilder(String.join(",", userList));
+        String existingUsers = getAttributeValue(facetNameOfRole, targetSelector, memberOfAttribute);
+        if (StringUtils.isNotEmpty(existingUsers)) {
+            users.append(",").append(existingUsers);
+        }
+        map.put(memberOfAttribute, users.toString());
+        awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfRole, targetSelector, map);
+    }
+
     /**
      * Map the user to role list.
      *
-     * @param userList The username of the user the roles need to be added to.
+     * @param userName The username of the user the roles need to be added to.
      * @param roleList The list of roles that needs to be mapped against the user.
      * @throws UserStoreException If error occurred.
      */
-    private void addUsersToRoleList(String[] userList, String[] roleList) throws UserStoreException {
+    protected void updateRolesListOfUser(String userName, String[] roleList) throws UserStoreException {
+
+        addRolesToUser(userName, roleList);
+        if (membershipType.equals(AWSConstants.ATTRIBUTE)) {
+            updateUserWithRoles(roleList, userName);
+        }
+        if (log.isDebugEnabled()) {
+            log.debug(String.format("Roles: %s are added to user: %s successfully", Arrays.toString(roleList),
+                    userName));
+        }
+    }
+
+    private void updateUserWithRoles(String[] roleList, String userName) throws UserStoreException {
 
         Map<String, String> map = new HashMap<>();
-        if (roleList != null && userList != null) {
-            for (String userName : userList) {
-                String sourceSelector = pathToUsers + "/" + userName;
-                for (String role : roleList) {
-                    String targetSelector = pathToRoles + "/" + role;
-                    assignUserToRole(userName, role, sourceSelector, targetSelector);
-                }
-                if (membershipType.equals(AWSConstants.ATTRIBUTE)) {
-                    StringBuilder roles = new StringBuilder(String.join(",", roleList));
-                    // Get already existing role list the append this list then update the attribute
-                    String existingRoles = getAttributeValue(facetNameOfUser, sourceSelector, membershipAttribute);
-                    if (StringUtils.isNotEmpty(existingRoles)) {
-                        roles.append(",").append(existingRoles);
-                    }
-                    map.put(membershipAttribute, roles.toString());
-                    awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfUser, sourceSelector,
-                            map);
-                    map.clear();
-                }
-            }
-            if (debug) {
-                log.debug(String.format("Roles: %s are added to users: %s successfully", Arrays.toString(roleList),
-                        Arrays.toString(userList)));
-            }
+        String sourceSelector = pathToUsers + "/" + userName;
+        StringBuilder roles = new StringBuilder(String.join(",", roleList));
+        // Get already existing role list the append this list then update the attribute
+        String existingRoles = getAttributeValue(facetNameOfUser, sourceSelector, membershipAttribute);
+        if (StringUtils.isNotEmpty(existingRoles)) {
+            roles.append(",").append(existingRoles);
         }
+        map.put(membershipAttribute, roles.toString());
+        awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfUser, sourceSelector, map);
     }
 
     /**
@@ -1764,23 +1828,18 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      * @param targetSelector Path of an target object in the tree structure.
      * @throws UserStoreException If error occurred.
      */
-    private void assignUserToRole(String userName, String role, String sourceSelector, String targetSelector)
+    protected void assignUserToRole(String userName, String role, String sourceSelector, String targetSelector)
             throws UserStoreException {
 
         Map<String, String> map = new HashMap<>();
         if (AWSConstants.LINK.equals(membershipType)) {
             map.put(userNameAttribute, userName);
+            map.put(userNameAttribute, userName);
             map.put(roleNameAttribute, role);
             awsActions.attachTypedLink(sourceSelector, targetSelector, typedLinkFacetName, map);
         } else if (AWSConstants.ATTRIBUTE.equals(membershipType)) {
-            StringBuilder users = new StringBuilder(userName);
-            String existingUsers = getAttributeValue(facetNameOfRole, targetSelector, memberOfAttribute);
-            if (StringUtils.isNotEmpty(existingUsers)) {
-                users.append(",").append(existingUsers);
-            }
-            map.put(memberOfAttribute, users.toString());
-            awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfRole, targetSelector, map);
-            map.clear();
+            String[] userList = {userName};
+            updateRoleWithUsers(userList, role);
         }
     }
 
@@ -1793,7 +1852,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      * @return Value of the attribute name.
      * @throws UserStoreException If error occurred.
      */
-    private String getAttributeValue(String facetName, String objectReference, String attributeKey)
+    protected String getAttributeValue(String facetName, String objectReference, String attributeKey)
             throws UserStoreException {
 
         JSONObject objectAttributes = awsActions.listObjectAttributes(facetName, objectReference);
@@ -1817,7 +1876,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      * @param attributeKey Attribute name.
      * @return Boolean.
      */
-    private boolean isFacetAttributeExist(String attributeKey, JSONObject objectAttributes) {
+    protected boolean isFacetAttributeExist(String attributeKey, JSONObject objectAttributes) {
 
         JSONArray attributes = (JSONArray) objectAttributes.get(AWSConstants.ATTRIBUTES);
         for (Object attribute : attributes) {
@@ -1836,7 +1895,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      * @return Boolean
      * @throws UserStoreException If error occurred.
      */
-    private boolean checkDirectoryExist(String directoryArn) throws UserStoreException {
+    protected boolean checkDirectoryExist(String directoryArn) throws UserStoreException {
 
         String nextToken = null;
         do {
@@ -1862,9 +1921,8 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      * @param msg error message as a string.
      * @throws UserStoreException If error occurred.
      */
-    private void handleException(String msg) throws UserStoreException {
+    protected void handleException(String msg) throws UserStoreException {
 
-        log.error(msg);
         throw new UserStoreException(msg);
     }
 }

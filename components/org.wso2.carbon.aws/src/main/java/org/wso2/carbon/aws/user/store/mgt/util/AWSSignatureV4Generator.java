@@ -208,8 +208,7 @@ public class AWSSignatureV4Generator {
             header.put(AWSConstants.AUTHORIZATION_HEADER, buildAuthorizationString(signature));
 
             if (log.isDebugEnabled()) {
-                log.debug("Signature: " + signature);
-                log.debug("Header: ");
+                log.debug(String.format("Signature: %s. Headers: ", signature));
                 for (Map.Entry<String, String> entrySet : header.entrySet()) {
                     log.debug(entrySet.getKey() + " = " + entrySet.getValue());
                 }
