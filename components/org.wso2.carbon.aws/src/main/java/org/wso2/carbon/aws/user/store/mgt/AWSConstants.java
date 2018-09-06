@@ -52,11 +52,11 @@ public class AWSConstants {
     public static final String CREATE_TYPEDLINK = "/typedlink/facet/create";
     public static final String ATTACH_TYPEDLINK = "/typedlink/attach";
     public static final String LIST_OBJECT_ATTRIBUTES = "/object/attributes";
-    public static final String LIST_FACET_ATTRIBUTES = "/facet/attributes";
     public static final String GET_OBJECT_INFORMATION = "/object/information";
     public static final String DETACH_OBJECT = "/object/detach";
     public static final String FACET = "/facet";
     public static final String DETACH_TYPEDLINK = "/typedlink/detach";
+    public static final String BATCH_WRITE = "/batchwrite";
     public static final String UPDATE_OBJECT = "/object/update";
     public static final String DELETE_OBJECT = "/object/delete";
     public static final String LIST_OBJECT_CHILDREN = "/object/children";
@@ -86,6 +86,9 @@ public class AWSConstants {
     public static final String DIRECTORY_ARN = "DirectoryArn";
     public static final String SCHEMA_ARN = "SchemaArn";
     public static final String OBJECT_REFERENCE = "\"ObjectReference\": {\"Selector\": \"";
+    public static final String OPERATIONS = "{\"Operations\": [";
+    public static final String DETACH_TYPED_LINK = "{\"DetachTypedLink\":";
+    public static final String UPDATE_ATTRIBUTES = "{\"UpdateObjectAttributes\":";
     public static final String TYPED_LINK_NAME = "\", \"TypedLinkName\": \"";
     public static final String SCHEMAARN = "\", \"SchemaArn\": \"";
     public static final String NAME_STR = "], \"Name\": \"";
@@ -114,12 +117,8 @@ public class AWSConstants {
     public static final String FACET_ATTRIBUTE = "{\"Facet\": {\"Attributes\": [";
     public static final String IDENTITY_ATTRIBUTE = "], \"IdentityAttributeOrder\": [";
     public static final String SCHEMA_FACET = "\"}, \"SchemaFacets\": [{\"FacetName\" : \"";
-    public static final String MAX_RESULTS = "{\"MaxResults\": 100, \"Name\": \"";
     public static final String REQUIRED = "\", \"RequiredBehavior\": \"";
     public static final String FILTER_TYPEDLINK = "\"FilterTypedLink\": {\"SchemaArn\": \"";
-    public static final String ACTION = "{\"Action\": \"CREATE_OR_UPDATE\", \"Attribute\": { \"AttributeDefinition\"" +
-            ": {\"Type\": \"STRING\"}, \"Name\": \"";
-    public static final String BEHAVIOR = "\", \"RequiredBehavior\": \"NOT_REQUIRED\"}}";
     public static final String RESPONSE = "Response : %s, StatusCode : %s";
     public static final String TYPED_LINK_SPECIFIER = "{\"TypedLinkSpecifier\": ";
     public static final String ATTRIBUTE_UPDATE = "{\"AttributeUpdates\": [";
@@ -137,6 +136,7 @@ public class AWSConstants {
     public static final String HMAC_ALGORITHM = "AWS4-HMAC-SHA256";
     public static final String AWS4_REQUEST = "aws4_request";
     public static final String AWS4 = "AWS4";
+    public static final double MAX_API_LIMIT = 30.0;
     public static final String HMAC_SHA = "HmacSHA256";
     public static final String SHA_ALGORITHM = "SHA-256";
     public static final String DATE_TIME_FORMAT = "yyyyMMdd'T'HHmmss'Z'";

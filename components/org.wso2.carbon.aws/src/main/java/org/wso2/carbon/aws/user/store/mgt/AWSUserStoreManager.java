@@ -22,7 +22,6 @@ import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.http.HttpStatus;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.wso2.carbon.CarbonConstants;
@@ -45,7 +44,6 @@ import org.wso2.carbon.user.core.util.UserCoreUtil;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
@@ -234,11 +232,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
             Map<String, String> claimList = getClaimAttributes(userName, claims);
             map.putAll(claimList);
         }
-        if (awsActions.createObject(userName, facetNameOfUser, pathToUsers, map) == HttpStatus.SC_OK) {
-            if (log.isDebugEnabled()) {
-                log.debug(String.format("Added user: %s  successfully", userName));
-            }
-        }
+        awsActions.createObject(userName, facetNameOfUser, pathToUsers, map);
         if (hasRoles) {
             // Add roles to user.
             addRolesToUser(userName, roleList);
@@ -268,11 +262,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         if (detachObject.get(AWSConstants.DETACHED_OBJECT_IDENTIFIER) != null) {
             String identifier = "$" + detachObject.get(AWSConstants.DETACHED_OBJECT_IDENTIFIER).toString();
             // Delete object from directory.
-            if (awsActions.deleteObject(identifier) == HttpStatus.SC_OK) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Deleted user " + userName + " successfully");
-                }
-            }
+            awsActions.deleteObject(identifier);
         }
     }
 
@@ -285,6 +275,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
     protected void removeUserFromRoles(String userName) throws UserStoreException {
 
         Map<String, String> map = new HashMap<>();
+        List<String> attributes = new LinkedList<>();
         String nextToken = null;
         do {
             JSONObject listChildren = awsActions.listObjectChildren(nextToken, pathToRoles);
@@ -301,10 +292,11 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
                         updatedUserList.remove(userName);
 
                         map.put(memberOfAttribute, String.join(",", updatedUserList));
-                        awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfRole, keyValue
-                                , map);
+                        attributes.add(AWSConstants.UPDATE_ATTRIBUTES + awsActions.buildPayloadToUpdateObjectAttributes(
+                                AWSConstants.CREATE_OR_UPDATE, facetNameOfRole, keyValue, map) + "}");
                     }
                 }
+                awsActions.batchWrite(AWSConstants.OPERATIONS + String.join(",", attributes) + "]}");
             }
         } while (StringUtils.isNotEmpty(nextToken));
     }
@@ -318,17 +310,15 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
     protected void detachOutgoingTypedLinks(JSONObject outgoingTypedLinks) throws UserStoreException {
 
         Object specifiers = outgoingTypedLinks.get(AWSConstants.TYPEDLINK_SPECIFIERS);
+        List<String> attributes = new LinkedList<>();
         JSONArray typedLinkSpecifiers = (specifiers != null) ? (JSONArray) specifiers : null;
         if (typedLinkSpecifiers != null) {
             for (Object typedLinkSpecifier : typedLinkSpecifiers) {
                 String keyValue = ((JSONObject) typedLinkSpecifier).toJSONString();
-                String detachPayload = AWSConstants.TYPED_LINK_SPECIFIER + keyValue + "}";
-                int statusCode = awsActions.detachTypedLink(detachPayload);
-                if (statusCode != 200) {
-                    log.error(AWSConstants.ERROR_WHILE_DETACH_TYPED_LINK + keyValue);
-                }
+                attributes.add(AWSConstants.DETACH_TYPED_LINK + AWSConstants.TYPED_LINK_SPECIFIER + keyValue + "}}");
             }
         }
+        awsActions.batchWrite(AWSConstants.OPERATIONS + String.join(",", attributes) + "]}");
     }
 
     /**
@@ -369,12 +359,8 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         Map<String, String> map = new HashMap<>();
         byte[] passwordToStore = UserCoreUtil.getPasswordToStore(newCredential, passwordHashMethod, false);
         map.put(passwordAttribute, new String(passwordToStore));
-        if (awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfUser, pathToUsers + "/"
-                + userName, map) == HttpStatus.SC_OK) {
-            if (log.isDebugEnabled()) {
-                log.debug("Credential updated successfully for user " + userName);
-            }
-        }
+        awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfUser, pathToUsers + "/"
+                + userName, map);
     }
 
     /**
@@ -447,11 +433,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         if (membershipType.equals(AWSConstants.ATTRIBUTE) && hasUsers) {
             map.put(memberOfAttribute, String.join(",", userList));
         }
-        if (awsActions.createObject(roleName, facetNameOfRole, pathToRoles, map) == HttpStatus.SC_OK) {
-            if (log.isDebugEnabled()) {
-                log.debug("Role: " + roleName + " is added successfully");
-            }
-        }
+        awsActions.createObject(roleName, facetNameOfRole, pathToRoles, map);
         if (hasUsers) {
             // Add users to role.
             addUsersToRole(userList, roleName);
@@ -481,11 +463,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         if (detachObject.get(AWSConstants.DETACHED_OBJECT_IDENTIFIER) != null) {
             String identifier = "$" + detachObject.get(AWSConstants.DETACHED_OBJECT_IDENTIFIER).toString();
             // Delete object from directory.
-            if (awsActions.deleteObject(identifier) == HttpStatus.SC_OK) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Deleted role " + roleName + " successfully");
-                }
-            }
+            awsActions.deleteObject(identifier);
         }
     }
 
@@ -498,6 +476,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
     protected void removeRoleFromUsers(String roleName) throws UserStoreException {
 
         Map<String, String> map = new HashMap<>();
+        List<String> attributes = new LinkedList<>();
         String nextToken = null;
         do {
             JSONObject objectChildrens = awsActions.listObjectChildren(nextToken, pathToUsers);
@@ -513,9 +492,11 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
                         updatedRoleList.remove(roleName);
 
                         map.put(membershipAttribute, String.join(",", updatedRoleList));
-                        awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfUser, value, map);
+                        attributes.add(AWSConstants.UPDATE_ATTRIBUTES + awsActions.buildPayloadToUpdateObjectAttributes(
+                                AWSConstants.CREATE_OR_UPDATE, facetNameOfUser, value, map) + "}");
                     }
                 }
+                awsActions.batchWrite(AWSConstants.OPERATIONS + String.join(",", attributes) + "]}");
             }
         } while (StringUtils.isNotEmpty(nextToken));
     }
@@ -529,16 +510,14 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
     protected void detachIncomingTypedLinks(JSONObject incomingTypedLinks) throws UserStoreException {
 
         Object specifiers = incomingTypedLinks.get(AWSConstants.LINK_SPECIFIERS);
+        List<String> attributes = new LinkedList<>();
         JSONArray linkSpecifiers = (specifiers != null) ? (JSONArray) specifiers : null;
         if (linkSpecifiers != null) {
             for (Object linkSpecifier : linkSpecifiers) {
-                JSONObject keyValue = (JSONObject) linkSpecifier;
-                String detachPayload = AWSConstants.TYPED_LINK_SPECIFIER + keyValue.toJSONString() + "}";
-                int statusCode = awsActions.detachTypedLink(detachPayload);
-                if (statusCode != 200) {
-                    log.error(AWSConstants.ERROR_WHILE_DETACH_TYPED_LINK + keyValue.toJSONString());
-                }
+                String keyValue = ((JSONObject) linkSpecifier).toJSONString();
+                attributes.add(AWSConstants.DETACH_TYPED_LINK + AWSConstants.TYPED_LINK_SPECIFIER + keyValue + "}}");
             }
+            awsActions.batchWrite(AWSConstants.OPERATIONS + String.join(",", attributes) + "]}");
         }
     }
 
@@ -639,7 +618,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
             maxItemLimit = givenMax;
         }
 
-        List<String> tempList = getAllChildrens(pathToUsers, filter);
+        List<String> tempList = getAllChildrens(pathToUsers, filter, maxItemLimit);
         int usersCount = tempList.size();
         if (usersCount > 0) {
             users = tempList.toArray(new String[tempList.size()]);
@@ -667,13 +646,10 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         StringBuilder builder = new StringBuilder(".*");
         for (StringTokenizer st = new StringTokenizer(filter, "%*", true); st.hasMoreTokens(); ) {
             String token = st.nextToken();
-            switch (token) {
-                case "*":
-                    builder.append(".*");
-                    break;
-                default:
-                    builder.append(Pattern.quote(token));
-                    break;
+            if ("*".equals(token)) {
+                builder.append(".*");
+            } else {
+                builder.append(Pattern.quote(token));
             }
         }
         builder.append(".*");
@@ -712,7 +688,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
             maxItemLimit = givenMax;
         }
 
-        List<String> tempList = getAllChildrens(pathToRoles, filter);
+        List<String> tempList = getAllChildrens(pathToRoles, filter, maxItemLimit);
         int rolesCount = tempList.size();
         if (rolesCount > 0) {
             roles = tempList.toArray(new String[tempList.size()]);
@@ -734,11 +710,13 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      * @return List of children
      * @throws UserStoreException If error occurred.
      */
-    protected List<String> getAllChildrens(String selector, String filter) throws UserStoreException {
+    protected List<String> getAllChildrens(String selector, String filter, double maxLimit) throws UserStoreException {
 
         String nextToken = null;
         String name;
         List<String> tempList = new LinkedList<>();
+        double apiCallLimit = Math.ceil(maxLimit / AWSConstants.MAX_API_LIMIT);
+        int counter = 1;
         do {
             JSONObject objectChildrens = awsActions.listObjectChildren(nextToken, selector);
             Object token = objectChildrens.get(AWSConstants.NEXT_TOKEN);
@@ -753,7 +731,8 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
                     }
                 }
             }
-        } while (StringUtils.isNotEmpty(nextToken));
+            counter++;
+        } while (StringUtils.isNotEmpty(nextToken) && counter <= apiCallLimit);
 
         return tempList;
     }
@@ -1062,9 +1041,6 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         if (newUsers != null && newUsers.length > 0) {
             // Update user list of role.
             updateUserListOfRole(newUsers, roleName);
-        }
-        if (log.isDebugEnabled()) {
-            log.debug(String.format("New users are assign to role: %s successfully.", roleName));
         }
     }
 
@@ -1421,18 +1397,8 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
                     "Attribute value: %s", claimURI, attributeName, claimValue));
         }
         map.put(attributeName, claimValue);
-        JSONObject objectAttributes = awsActions.listFacetAttributes(facetNameOfUser);
-        boolean isFacetExist = isFacetAttributeExist(attributeName, objectAttributes);
-        if (!isFacetExist) {
-            awsActions.updateFacet(facetNameOfUser, Collections.singletonList(attributeName));
-        }
-
-        if (awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfUser,
-                pathToUsers + "/" + userName, map) == HttpStatus.SC_OK) {
-            if (log.isDebugEnabled()) {
-                log.debug(String.format("Successfully updated the user claim with claimURI: %s", claimURI));
-            }
-        }
+        awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfUser, pathToUsers + "/" + userName,
+                map);
     }
 
     /**
@@ -1448,12 +1414,8 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
             throws UserStoreException {
 
         Map<String, String> map = getClaimAttributes(userName, claims);
-        if (awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfUser,
-                pathToUsers + "/" + userName, map) == HttpStatus.SC_OK) {
-            if (log.isDebugEnabled()) {
-                log.debug(String.format("Successfully updated the user claims: %s", claims.toString()));
-            }
-        }
+        awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfUser, pathToUsers + "/" + userName,
+                map);
     }
 
     /**
@@ -1470,9 +1432,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         if (log.isDebugEnabled()) {
             log.debug("Processing user claims");
         }
-        JSONObject objectAttributes = awsActions.listFacetAttributes(facetNameOfUser);
         Map<String, String> map = new HashMap<>();
-        List<String> attributes = new LinkedList<>();
         for (Map.Entry<String, String> entry : claims.entrySet()) {
             // Needs to get attribute name from claim mapping
             String claimURI = entry.getKey();
@@ -1487,13 +1447,6 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
                         attributeName, claims.get(entry.getKey())));
             }
             map.put(attributeName, claims.get(entry.getKey()));
-            boolean isFacetExist = isFacetAttributeExist(attributeName, objectAttributes);
-            if (!isFacetExist) {
-                attributes.add(attributeName);
-            }
-        }
-        if (!attributes.isEmpty()) {
-            awsActions.updateFacet(facetNameOfUser, attributes);
         }
         return map;
     }
@@ -1517,12 +1470,8 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
             throw new UserStoreException(AWSConstants.ERROR_WHILE_GETTING_CLAIM_ATTRIBUTE + userName, e);
         }
         map.put(attributeName, null);
-        if (awsActions.updateObjectAttributes(AWSConstants.DELETE, facetNameOfUser, pathToUsers + "/"
-                + userName, map) == HttpStatus.SC_OK) {
-            if (log.isDebugEnabled()) {
-                log.debug(String.format("Successfully deleted user claim with claimURI: %s", claimURI));
-            }
-        }
+        awsActions.updateObjectAttributes(AWSConstants.DELETE, facetNameOfUser, pathToUsers + "/"
+                + userName, map);
     }
 
     /**
@@ -1834,7 +1783,6 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         Map<String, String> map = new HashMap<>();
         if (AWSConstants.LINK.equals(membershipType)) {
             map.put(userNameAttribute, userName);
-            map.put(userNameAttribute, userName);
             map.put(roleNameAttribute, role);
             awsActions.attachTypedLink(sourceSelector, targetSelector, typedLinkFacetName, map);
         } else if (AWSConstants.ATTRIBUTE.equals(membershipType)) {
@@ -1868,24 +1816,6 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
             }
         }
         return attributeValue;
-    }
-
-    /**
-     * Check whether the attribute name is already define in the facet or not.
-     *
-     * @param attributeKey Attribute name.
-     * @return Boolean.
-     */
-    protected boolean isFacetAttributeExist(String attributeKey, JSONObject objectAttributes) {
-
-        JSONArray attributes = (JSONArray) objectAttributes.get(AWSConstants.ATTRIBUTES);
-        for (Object attribute : attributes) {
-            String key = ((JSONObject) attribute).get(AWSConstants.NAME).toString();
-            if (attributeKey.equals(key)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**

@@ -289,10 +289,9 @@ public class AWSRestApiActions {
      * Deletes an object and its associated attributes.
      *
      * @param selector A path selector selection of an object by the parent/child links.
-     * @return Status code.
      * @throws UserStoreException If error occurred.
      */
-    public int deleteObject(String selector) throws UserStoreException {
+    public void deleteObject(String selector) throws UserStoreException {
 
         if (log.isDebugEnabled()) {
             log.debug(String.format("Deleting an object with objectReference %s.", selector));
@@ -318,7 +317,6 @@ public class AWSRestApiActions {
             handleException(String.format("Error occured while delete an object %s. " + AWSConstants.RESPONSE, selector,
                     responseObject.toJSONString(), statusCode));
         }
-        return statusCode;
     }
 
     /**
@@ -328,10 +326,9 @@ public class AWSRestApiActions {
      * @param facetName       Name of the facet.
      * @param objectReference The reference that identifies the object in the directory structure.
      * @param map             List of properties to build the payload.
-     * @return Status code.
      * @throws UserStoreException If error occurred.
      */
-    public int updateObjectAttributes(String action, String facetName, String objectReference, Map<String, String> map)
+    public void updateObjectAttributes(String action, String facetName, String objectReference, Map<String, String> map)
             throws UserStoreException {
 
         if (log.isDebugEnabled()) {
@@ -359,7 +356,6 @@ public class AWSRestApiActions {
             handleException(String.format("Error occured while update a given object's attributes. ObjectReference: %s"
                     + AWSConstants.RESPONSE, objectReference, responseObject.toJSONString(), statusCode));
         }
-        return statusCode;
     }
 
     /**
@@ -402,6 +398,38 @@ public class AWSRestApiActions {
     }
 
     /**
+     * Performs write operations in a batch.
+     *
+     * @param payload Payload to detach type link.
+     * @throws UserStoreException If error occurred.
+     */
+    public void batchWrite(String payload) throws UserStoreException {
+
+        if (log.isDebugEnabled()) {
+            log.debug("Calling batch write operation");
+        }
+        String canonicalURI = baseURI + AWSConstants.BATCH_WRITE;
+        TreeMap<String, String> awsHeaders = new TreeMap<>();
+        awsHeaders.put(AWSConstants.PARTITION_HEADER, directoryArn);
+        if (log.isDebugEnabled()) {
+            log.debug(String.format("Payload for batch write operation : %s ", payload));
+        }
+        HttpPut httpPut = preparePutHeaders(canonicalURI, awsHeaders, payload);
+        httpPut.setHeader(AWSConstants.PARTITION_HEADER, directoryArn);
+        Object[] result = getHttpPutResults(httpPut);
+        int statusCode = (Integer) result[0];
+        JSONObject responseObject = (JSONObject) result[1];
+        if (statusCode == HttpStatus.SC_OK) {
+            if (log.isDebugEnabled()) {
+                log.debug("Successfully executed batch write operation.");
+            }
+        } else {
+            handleException(String.format("Error occurred while performing batch write operation: . "
+                    + AWSConstants.RESPONSE, responseObject.toJSONString(), statusCode));
+        }
+    }
+
+    /**
      * Detaches a given object from the parent object.
      *
      * @param linkName        Name of the link.
@@ -434,41 +462,6 @@ public class AWSRestApiActions {
                     + AWSConstants.RESPONSE, parentReference, responseObject.toJSONString(), statusCode));
         }
         return null;
-    }
-
-    /**
-     * Update the facet.
-     *
-     * @param facetName     Name of the facet.
-     * @param attributeList Attribute list.
-     * @throws UserStoreException If error occurred.
-     */
-    public void updateFacet(String facetName, List<String> attributeList) throws UserStoreException {
-
-        if (log.isDebugEnabled()) {
-            log.debug(String.format("Updating facet: %s.", facetName));
-        }
-        String canonicalURI = baseURI + AWSConstants.FACET;
-        TreeMap<String, String> awsHeaders = new TreeMap<>();
-        awsHeaders.put(AWSConstants.PARTITION_HEADER, schemaArn);
-        String payload = buildPayloadToupdateFacet(facetName, attributeList);
-        if (log.isDebugEnabled()) {
-            log.debug(String.format("Payload to update a facet : %s ", payload));
-        }
-        HttpPut httpPut = preparePutHeaders(canonicalURI, awsHeaders, payload);
-        httpPut.setHeader(AWSConstants.PARTITION_HEADER, schemaArn);
-
-        Object[] result = getHttpPutResults(httpPut);
-        int statusCode = (Integer) result[0];
-        JSONObject responseObject = (JSONObject) result[1];
-        if (statusCode == HttpStatus.SC_OK) {
-            if (log.isDebugEnabled()) {
-                log.debug("Successfully updated the facet.");
-            }
-        } else {
-            handleException(String.format("Error occured while updating a facet : %s. " +
-                    AWSConstants.RESPONSE, facetName, responseObject.toJSONString(), statusCode));
-        }
     }
 
     /**
@@ -538,40 +531,6 @@ public class AWSRestApiActions {
         } else {
             handleException(String.format("Error occured while list all attributes of an object: %s. " +
                     AWSConstants.RESPONSE, objectReference, responseObject.toJSONString(), statusCode));
-        }
-        return null;
-    }
-
-    /**
-     * Listing all attributes of an facet
-     *
-     * @param facetName Facet name.
-     * @return Facet attributes.
-     * @throws UserStoreException If error occurred.
-     */
-    public JSONObject listFacetAttributes(String facetName) throws UserStoreException {
-
-        if (log.isDebugEnabled()) {
-            log.debug(String.format("Listing all attributes of an facet: %s.", facetName));
-        }
-        String canonicalURI = baseURI + AWSConstants.LIST_FACET_ATTRIBUTES;
-        TreeMap<String, String> awsHeaders = new TreeMap<>();
-        awsHeaders.put(AWSConstants.PARTITION_HEADER, schemaArn);
-        String payload = buildPayloadTolistFacetAttributes(facetName);
-        if (log.isDebugEnabled()) {
-            log.debug(String.format("Payload to list all attributes of an facet : %s ", payload));
-        }
-        HttpPost httpPost = preparePostHeaders(canonicalURI, awsHeaders, payload);
-        httpPost.setHeader(AWSConstants.PARTITION_HEADER, schemaArn);
-
-        Object[] result = getHttpPostResults(httpPost);
-        int statusCode = (Integer) result[0];
-        JSONObject responseObject = (JSONObject) result[1];
-        if (statusCode == HttpStatus.SC_OK) {
-            return responseObject;
-        } else {
-            handleException(String.format("Error occured while list all attributes of an facet: %s. " +
-                    AWSConstants.RESPONSE, facetName, responseObject.toJSONString(), statusCode));
         }
         return null;
     }
@@ -659,10 +618,9 @@ public class AWSRestApiActions {
      * @param facetName       Name of the facet.
      * @param parentReference The parent reference to which this object will be attached.
      * @param map             List of properties to build the payload.
-     * @return Status code.
      * @throws UserStoreException If error occurred.
      */
-    public int createObject(String linkName, String facetName, String parentReference, Map<String, String> map)
+    public void createObject(String linkName, String facetName, String parentReference, Map<String, String> map)
             throws UserStoreException {
 
         if (log.isDebugEnabled()) {
@@ -691,7 +649,6 @@ public class AWSRestApiActions {
             handleException(String.format("Error occured while create an object in a directory %s. " +
                     AWSConstants.RESPONSE, directoryArn, responseObject.toJSONString(), statusCode));
         }
-        return statusCode;
     }
 
     /**
@@ -805,11 +762,6 @@ public class AWSRestApiActions {
                 + objectReference + "\"}}";
     }
 
-    private String buildPayloadTolistFacetAttributes(String facetName) {
-
-        return AWSConstants.MAX_RESULTS + facetName + "\"}";
-    }
-
     /**
      * Generate payload to get typed link.
      *
@@ -849,24 +801,6 @@ public class AWSRestApiActions {
     }
 
     /**
-     * Generate payload to update facet.
-     *
-     * @param facetName     Name of the facet.
-     * @param attributeList Attribute list.
-     * @return Payload.
-     */
-    private String buildPayloadToupdateFacet(String facetName, List<String> attributeList) {
-
-        StringBuilder builder = new StringBuilder();
-        List<String> attributes = new LinkedList<>();
-        for (String attributeName : attributeList) {
-            attributes.add(AWSConstants.ACTION + attributeName + AWSConstants.BEHAVIOR);
-        }
-        return builder.append(AWSConstants.ATTRIBUTE_UPDATE).append(String.join(",", attributes))
-                .append(AWSConstants.NAME_STR).append(facetName).append("\"}").toString();
-    }
-
-    /**
      * Generate payload to update objectAttributes.
      *
      * @param action          The action to perform when updating the attribute.
@@ -875,8 +809,8 @@ public class AWSRestApiActions {
      * @param map             List of properties to build the payload.
      * @return Payload.
      */
-    private String buildPayloadToUpdateObjectAttributes(String action, String facetName, String objectReference,
-                                                        Map<String, String> map) {
+    public String buildPayloadToUpdateObjectAttributes(String action, String facetName, String objectReference,
+                                                       Map<String, String> map) {
 
         StringBuilder builder = new StringBuilder();
         List<String> attributes = new LinkedList<>();
@@ -1005,7 +939,8 @@ public class AWSRestApiActions {
      * @return HttpPost request.
      * @throws UserStoreException If error occurred.
      */
-    private HttpPost preparePostHeaders(String canonicalURI, TreeMap<String, String> awsHeaders, String payload) throws UserStoreException {
+    private HttpPost preparePostHeaders(String canonicalURI, TreeMap<String, String> awsHeaders, String payload)
+            throws UserStoreException {
 
         HttpPost httpPost = new HttpPost(AWSConstants.HTTPS + hostHeader + canonicalURI);
         awsHeaders.put(AWSConstants.HOST_HEADER, hostHeader);

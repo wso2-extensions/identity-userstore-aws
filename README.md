@@ -63,8 +63,82 @@ Then obtain the following property values and use it in the AWS user store confi
  }
 }
 ```
+<br/><br/>
+>> <b>NOTE : </b>If you are going to maintain set of claims(for example givenName, mobile, organizationName) in the user profile, you need to update the above mentioned schema as below :
 
-
+```json
+ {
+  "facets": {
+    "ROLES": {
+      "facetAttributes": {
+        "RoleName": {
+          "attributeDefinition": {
+            "attributeType": "STRING",
+            "isImmutable": false
+          },
+          "requiredBehavior": "REQUIRED_ALWAYS"
+        },
+        "MemberOf": {
+          "attributeDefinition": {
+            "attributeType": "STRING",
+            "isImmutable": false
+          },
+          "requiredBehavior": "NOT_REQUIRED"
+        }
+      },
+      "objectType": "LEAF_NODE"
+    },
+    "USERS": {
+      "facetAttributes": {
+        "UserName": {
+          "attributeDefinition": {
+            "attributeType": "STRING",
+            "isImmutable": false
+          },
+          "requiredBehavior": "REQUIRED_ALWAYS"
+        },
+        "Password": {
+          "attributeDefinition": {
+            "attributeType": "STRING",
+            "isImmutable": false
+          },
+          "requiredBehavior": "REQUIRED_ALWAYS"
+        },
+        "Member": {
+          "attributeDefinition": {
+            "attributeType": "STRING",
+            "isImmutable": false
+          },
+          "requiredBehavior": "NOT_REQUIRED"
+        },
+        "givenName": {
+          "attributeDefinition": {
+            "attributeType": "STRING",
+            "isImmutable": false
+          },
+          "requiredBehavior": "NOT_REQUIRED"
+        },
+        "mobile": {
+          "attributeDefinition": {
+            "attributeType": "STRING",
+            "isImmutable": false
+          },
+          "requiredBehavior": "NOT_REQUIRED"
+        },
+        "organizationName": {
+          "attributeDefinition": {
+            "attributeType": "STRING",
+            "isImmutable": false
+          },
+          "requiredBehavior": "NOT_REQUIRED"
+        }
+      },
+      "objectType": "LEAF_NODE"
+    }
+  }
+ }
+```
+<br/><br/>
 ### Steps to Configure AWS as the Secondary User Store
 
 1. Download the AWS user store extension jar from [WSO2 store](https://store.wso2.com/store/assets/isconnector/list)
