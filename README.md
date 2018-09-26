@@ -159,7 +159,7 @@ Then obtain the following property values and use it in the AWS user store confi
 
 The above configurations are good enough for you to use the AWS as a secondary user store manager. However, in order to use the AWS as the primary user store of WSO2 IS you need some additional configurations as follow.
 
-4. After following steps 1-2, prior to start the IS server, add the following in the `user-mgt.xml` file of WSO2 IS. You can find this file inside `IS_HOME/repository/conf` folder.
+5. After following steps 1-2, prior to start the IS server, add the following in the `user-mgt.xml` file of WSO2 IS. You can find this file inside `IS_HOME/repository/conf` folder.
    Make sure to replace the following properties.
 
 #### user-mgt.xml

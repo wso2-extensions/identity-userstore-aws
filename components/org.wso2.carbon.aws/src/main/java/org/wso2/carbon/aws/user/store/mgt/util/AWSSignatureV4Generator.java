@@ -18,6 +18,7 @@
 
 package org.wso2.carbon.aws.user.store.mgt.util;
 
+import org.apache.commons.collections.MapUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.aws.user.store.mgt.AWSConstants;
@@ -51,8 +52,8 @@ public class AWSSignatureV4Generator {
     private Map<String, String> queryParametes;
     private Map<String, String> awsHeaders;
     private String payload;
-    /* Other variables */
-    private String strSignedHeader;
+    // Other variables
+    private String signedHeaderString;
     private String xAmzDate;
     private String currentDate;
 
@@ -68,7 +69,7 @@ public class AWSSignatureV4Generator {
         awsHeaders = builder.awsHeaders;
         payload = builder.payload;
 
-        /* Get current timestamp value.(UTC) */
+        // Get current timestamp value.(UTC)
         xAmzDate = getTimeStamp();
         currentDate = getDate();
     }
@@ -82,16 +83,16 @@ public class AWSSignatureV4Generator {
 
         StringBuilder canonicalURL = new StringBuilder("");
 
-        /* Step 1.1 Start with the HTTP request method (GET, PUT, POST, etc.), followed by a newline character. */
+        // Step 1.1 Start with the HTTP request method (GET, PUT, POST, etc.), followed by a newline character.
         canonicalURL.append(httpMethodName).append("\n");
 
-        /* Step 1.2 Add the canonical URI parameter, followed by a newline character. */
+        // Step 1.2 Add the canonical URI parameter, followed by a newline character.
         canonicalURI = canonicalURI == null || canonicalURI.trim().isEmpty() ? "/" : canonicalURI;
         canonicalURL.append(canonicalURI).append("\n");
 
-        /* Step 1.3 Add the canonical query string, followed by a newline character. */
+        // Step 1.3 Add the canonical query string, followed by a newline character.
         StringBuilder queryString = new StringBuilder("");
-        if (queryParametes != null && !queryParametes.isEmpty()) {
+        if (queryParametes != null && MapUtils.isNotEmpty(queryParametes)) {
             for (Map.Entry<String, String> entrySet : queryParametes.entrySet()) {
                 String key = entrySet.getKey();
                 String value = entrySet.getValue();
@@ -104,7 +105,7 @@ public class AWSSignatureV4Generator {
         }
         canonicalURL.append(queryString);
 
-        /* Step 1.4 Add the canonical headers, followed by a newline character. */
+        // Step 1.4 Add the canonical headers, followed by a newline character.
         StringBuilder signedHeaders = new StringBuilder("");
         if (awsHeaders != null && !awsHeaders.isEmpty()) {
             for (Map.Entry<String, String> entrySet : awsHeaders.entrySet()) {
@@ -121,13 +122,15 @@ public class AWSSignatureV4Generator {
             canonicalURL.append("\n");
         }
 
-        /* Step 1.5 Add the signed headers, followed by a newline character. */
-        strSignedHeader = signedHeaders.substring(0, signedHeaders.length() - 1); // Remove last ";"
-        canonicalURL.append(strSignedHeader).append("\n");
+        // Step 1.5 Add the signed headers, followed by a newline character.
+        signedHeaderString = signedHeaders.substring(0, signedHeaders.length() - 1); // Remove last ";"
+        canonicalURL.append(signedHeaderString).append("\n");
 
         /* Step 1.6 Use a hash (digest) function like SHA256 to create a hashed value from the payload in the body of
         the HTTP or HTTPS. */
-        payload = payload == null ? "" : payload;
+        if (payload == null) {
+            payload = "";
+        }
         canonicalURL.append(hash(payload));
         if (log.isDebugEnabled()) {
             log.debug("Canonical Request: " + canonicalURL.toString());
@@ -143,13 +146,13 @@ public class AWSSignatureV4Generator {
 
         String stringToSign;
 
-        /* Step 2.1 Start with the algorithm designation, followed by a newline character. */
+        // Step 2.1 Start with the algorithm designation, followed by a newline character.
         stringToSign = AWSConstants.HMAC_ALGORITHM + "\n";
 
-        /* Step 2.2 Append the request date value, followed by a newline character. */
+        // Step 2.2 Append the request date value, followed by a newline character.
         stringToSign += xAmzDate + "\n";
 
-        /* Step 2.3 Append the credential scope value, followed by a newline character. */
+        // Step 2.3 Append the credential scope value, followed by a newline character.
         stringToSign += currentDate + "/" + regionName + "/" + serviceName + "/" + AWSConstants.AWS4_REQUEST + "\n";
 
         /* Step 2.4 Append the hash of the canonical request that you created in Task 1: Create a Canonical Request
@@ -169,16 +172,16 @@ public class AWSSignatureV4Generator {
     private String calculateSignature(String stringToSign) {
 
         try {
-            /* Step 3.1 Derive your signing key */
+            // Step 3.1 Derive your signing key.
             byte[] signatureKey = getSignatureKey(secretAccessKey, currentDate, regionName, serviceName);
 
-            /* Step 3.2 Calculate the signature. */
+            // Step 3.2 Calculate the signature.
             byte[] signature = hmacSHA256(signatureKey, stringToSign);
 
-            /* Step 3.2.1 Encode signature (byte[]) to Hex */
+            // Step 3.2.1 Encode signature (byte[]) to Hex.
             return bytesToHex(signature);
-        } catch (Exception ex) {
-            log.error("Error while calculating the signature.");
+        } catch (UnsupportedEncodingException | InvalidKeyException | NoSuchAlgorithmException ex) {
+            log.error("Error while calculating the signature." + ex);
         }
         return null;
     }
@@ -193,13 +196,13 @@ public class AWSSignatureV4Generator {
 
         awsHeaders.put(AWSConstants.DATE_HEADER, xAmzDate);
 
-        /* Execute Task 1: Create a Canonical Request for Signature Version 4. */
+        // Execute Task 1: Create a Canonical Request for Signature Version 4.
         String canonicalURL = prepareCanonicalRequest();
 
-        /* Execute Task 2: Create a String to Sign for Signature Version 4. */
+        // Execute Task 2: Create a String to Sign for Signature Version 4.
         String stringToSign = prepareStringToSign(canonicalURL);
 
-        /* Execute Task 3: Calculate the AWS Signature Version 4. */
+        // Execute Task 3: Calculate the AWS Signature Version 4.
         String signature = calculateSignature(stringToSign);
 
         if (signature != null) {
@@ -229,7 +232,7 @@ public class AWSSignatureV4Generator {
         return AWSConstants.HMAC_ALGORITHM + " "
                 + "Credential=" + accessKeyID + "/" + getDate() + "/" + regionName + "/" + serviceName + "/"
                 + AWSConstants.AWS4_REQUEST + ","
-                + "SignedHeaders=" + strSignedHeader + ","
+                + "SignedHeaders=" + signedHeaderString + ","
                 + "Signature=" + strSignature;
     }
 
@@ -348,7 +351,7 @@ public class AWSSignatureV4Generator {
 
         try {
             return URLEncoder.encode(param, AWSConstants.UTF_8);
-        } catch (Exception e) {
+        } catch (UnsupportedEncodingException e) {
             return URLEncoder.encode(param);
         }
     }

@@ -142,7 +142,7 @@ public class AWSConstants {
     public static final String DATE_TIME_FORMAT = "yyyyMMdd'T'HHmmss'Z'";
     public static final String DATE_FORMAT = "yyyyMMdd";
     public static final String ERROR_WHILE_PARSING_RESPONSE = "Error while parsing response json";
-    public static final String ERROR_WHILE_CHARACTOR_ENCODING = "Error while character encoding is not supported";
+    public static final String ERROR_WHILE_CHARACTOR_ENCODING = "Character encoding is not supported";
     public static final String ERROR_WHILE_READING_RESPONSE = "Error while reading response body";
     public static final String ERROR_WHILE_DETACH_TYPED_LINK = "Could not detach typed link from object. Link: ";
     public static final String ERROR_WHILE_GETTING_CLAIM_ATTRIBUTE = "Error occurred while getting claim attribute" +

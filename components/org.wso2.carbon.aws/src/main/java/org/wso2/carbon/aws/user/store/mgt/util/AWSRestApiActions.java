@@ -98,12 +98,15 @@ public class AWSRestApiActions {
         }
         HttpPost httpPost = preparePostHeaders(canonicalURI, awsHeaders, payload);
         Object[] result = getHttpPostResults(httpPost);
-        int statusCode = (Integer) result[0];
+        int statusCode = 0;
+        if (result[0] != null) {
+            statusCode = (Integer) result[0];
+        }
         JSONObject responseObject = (JSONObject) result[1];
         if (statusCode == HttpStatus.SC_OK) {
             return responseObject;
         } else {
-            handleException(String.format("Error occured while list directories. " + AWSConstants.RESPONSE,
+            handleException(String.format("Error occured while listing directories. " + AWSConstants.RESPONSE,
                     responseObject.toJSONString(), statusCode));
         }
         return null;
@@ -134,7 +137,10 @@ public class AWSRestApiActions {
         HttpPost httpPost = preparePostHeaders(canonicalURI, awsHeaders, payload);
         httpPost.setHeader(AWSConstants.PARTITION_HEADER, directoryArn);
         Object[] result = getHttpPostResults(httpPost);
-        int statusCode = (Integer) result[0];
+        int statusCode = 0;
+        if (result[0] != null) {
+            statusCode = (Integer) result[0];
+        }
         JSONObject responseObject = (JSONObject) result[1];
         if (statusCode == HttpStatus.SC_OK) {
             return responseObject;
@@ -170,7 +176,10 @@ public class AWSRestApiActions {
         HttpPost httpPost = preparePostHeaders(canonicalURI, awsHeaders, payload);
         httpPost.setHeader(AWSConstants.PARTITION_HEADER, directoryArn);
         Object[] result = getHttpPostResults(httpPost);
-        int statusCode = (Integer) result[0];
+        int statusCode = 0;
+        if (result[0] != null) {
+            statusCode = (Integer) result[0];
+        }
         JSONObject responseObject = (JSONObject) result[1];
         if (statusCode == HttpStatus.SC_OK) {
             return responseObject;
@@ -204,7 +213,10 @@ public class AWSRestApiActions {
         HttpPost httpPost = preparePostHeaders(canonicalURI, awsHeaders, payload);
         httpPost.setHeader(AWSConstants.PARTITION_HEADER, schemaArn);
         Object[] result = getHttpPostResults(httpPost);
-        int statusCode = (Integer) result[0];
+        int statusCode = 0;
+        if (result[0] != null) {
+            statusCode = (Integer) result[0];
+        }
         JSONObject responseObject = (JSONObject) result[1];
         if (statusCode == HttpStatus.SC_OK) {
             return responseObject;
@@ -236,7 +248,10 @@ public class AWSRestApiActions {
         HttpPost httpPost = preparePostHeaders(canonicalURI, awsHeaders, payload);
         httpPost.setHeader(AWSConstants.PARTITION_HEADER, schemaArn);
         Object[] result = getHttpPostResults(httpPost);
-        int statusCode = (Integer) result[0];
+        int statusCode = 0;
+        if (result[0] != null) {
+            statusCode = (Integer) result[0];
+        }
         JSONObject responseObject = (JSONObject) result[1];
 
         if (statusCode == HttpStatus.SC_OK) {
@@ -273,7 +288,10 @@ public class AWSRestApiActions {
         httpPost.setHeader(AWSConstants.CONSISTENCY_LEVEL_HEADER, AWSConstants.SERIALIZABLE);
 
         Object[] result = getHttpPostResults(httpPost);
-        int statusCode = (Integer) result[0];
+        int statusCode = 0;
+        if (result[0] != null) {
+            statusCode = (Integer) result[0];
+        }
         JSONObject responseObject = (JSONObject) result[1];
         if (statusCode == HttpStatus.SC_OK) {
             return responseObject;
@@ -307,7 +325,10 @@ public class AWSRestApiActions {
         HttpPut httpPut = preparePutHeaders(canonicalURI, awsHeaders, payload);
         httpPut.setHeader(AWSConstants.PARTITION_HEADER, directoryArn);
         Object[] result = getHttpPutResults(httpPut);
-        int statusCode = (Integer) result[0];
+        int statusCode = 0;
+        if (result[0] != null) {
+            statusCode = (Integer) result[0];
+        }
         JSONObject responseObject = (JSONObject) result[1];
         if (statusCode == HttpStatus.SC_OK) {
             if (log.isDebugEnabled()) {
@@ -345,7 +366,10 @@ public class AWSRestApiActions {
         httpPut.setHeader(AWSConstants.PARTITION_HEADER, directoryArn);
 
         Object[] result = getHttpPutResults(httpPut);
-        int statusCode = (Integer) result[0];
+        int statusCode = 0;
+        if (result[0] != null) {
+            statusCode = (Integer) result[0];
+        }
         JSONObject responseObject = (JSONObject) result[1];
 
         if (statusCode == HttpStatus.SC_OK) {
@@ -417,7 +441,10 @@ public class AWSRestApiActions {
         HttpPut httpPut = preparePutHeaders(canonicalURI, awsHeaders, payload);
         httpPut.setHeader(AWSConstants.PARTITION_HEADER, directoryArn);
         Object[] result = getHttpPutResults(httpPut);
-        int statusCode = (Integer) result[0];
+        int statusCode = 0;
+        if (result[0] != null) {
+            statusCode = (Integer) result[0];
+        }
         JSONObject responseObject = (JSONObject) result[1];
         if (statusCode == HttpStatus.SC_OK) {
             if (log.isDebugEnabled()) {
@@ -453,7 +480,10 @@ public class AWSRestApiActions {
         httpPut.setHeader(AWSConstants.PARTITION_HEADER, directoryArn);
 
         Object[] result = getHttpPutResults(httpPut);
-        int statusCode = (Integer) result[0];
+        int statusCode = 0;
+        if (result[0] != null) {
+            statusCode = (Integer) result[0];
+        }
         JSONObject responseObject = (JSONObject) result[1];
         if (statusCode == HttpStatus.SC_OK) {
             return responseObject;
@@ -490,7 +520,10 @@ public class AWSRestApiActions {
         httpPost.setHeader(AWSConstants.CONSISTENCY_LEVEL_HEADER, AWSConstants.SERIALIZABLE);
 
         Object[] result = getHttpPostResults(httpPost);
-        int statusCode = (Integer) result[0];
+        int statusCode = 0;
+        if (result[0] != null) {
+            statusCode = (Integer) result[0];
+        }
         JSONObject responseObject = (JSONObject) result[1];
         if (statusCode == HttpStatus.SC_OK) {
             return responseObject;
@@ -524,7 +557,10 @@ public class AWSRestApiActions {
         httpPost.setHeader(AWSConstants.CONSISTENCY_LEVEL_HEADER, AWSConstants.SERIALIZABLE);
 
         Object[] result = getHttpPostResults(httpPost);
-        int statusCode = (Integer) result[0];
+        int statusCode = 0;
+        if (result[0] != null) {
+            statusCode = (Integer) result[0];
+        }
         JSONObject responseObject = (JSONObject) result[1];
         if (statusCode == HttpStatus.SC_OK) {
             return responseObject;
@@ -562,7 +598,10 @@ public class AWSRestApiActions {
         httpPut.setHeader(AWSConstants.PARTITION_HEADER, directoryArn);
 
         Object[] result = getHttpPutResults(httpPut);
-        int statusCode = (Integer) result[0];
+        int statusCode = 0;
+        if (result[0] != null) {
+            statusCode = (Integer) result[0];
+        }
         JSONObject responseObject = (JSONObject) result[1];
         if (statusCode == HttpStatus.SC_OK) {
             if (log.isDebugEnabled()) {
@@ -598,7 +637,10 @@ public class AWSRestApiActions {
         httpPut.setHeader(AWSConstants.PARTITION_HEADER, schemaArn);
 
         Object[] result = getHttpPutResults(httpPut);
-        int statusCode = (Integer) result[0];
+        int statusCode = 0;
+        if (result[0] != null) {
+            statusCode = (Integer) result[0];
+        }
         JSONObject responseObject = (JSONObject) result[1];
         if (statusCode == HttpStatus.SC_OK) {
             if (log.isDebugEnabled()) {
@@ -638,7 +680,10 @@ public class AWSRestApiActions {
         httpPut.setHeader(AWSConstants.PARTITION_HEADER, directoryArn);
 
         Object[] result = getHttpPutResults(httpPut);
-        int statusCode = (Integer) result[0];
+        int statusCode = 0;
+        if (result[0] != null) {
+            statusCode = (Integer) result[0];
+        }
         JSONObject responseObject = (JSONObject) result[1];
         if (statusCode == HttpStatus.SC_OK) {
             if (log.isDebugEnabled()) {
@@ -674,7 +719,10 @@ public class AWSRestApiActions {
         httpPut.setHeader(AWSConstants.PARTITION_HEADER, schemaArn);
 
         Object[] result = getHttpPutResults(httpPut);
-        int statusCode = (Integer) result[0];
+        int statusCode = 0;
+        if (result[0] != null) {
+            statusCode = (Integer) result[0];
+        }
         JSONObject responseObject = (JSONObject) result[1];
         if (statusCode == HttpStatus.SC_OK) {
             if (log.isDebugEnabled()) {

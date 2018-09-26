@@ -58,7 +58,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
 
     private static final Log log = LogFactory.getLog(AWSUserStoreManager.class);
     // Unique name to identify the user store.
-    private String domain = null;
+    private String domain;
     private AWSRestApiActions awsActions;
     // This is a path to identify the “Users” object in the tree structure.
     private String pathToUsers;
@@ -103,10 +103,8 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         if (realmConfig.getUserStoreProperty(UserCoreConstants.RealmConfig.WRITE_GROUPS_ENABLED) != null) {
             writeGroupsEnabled = Boolean.parseBoolean(realmConfig
                     .getUserStoreProperty(UserCoreConstants.RealmConfig.WRITE_GROUPS_ENABLED));
-        } else {
-            if (!isReadOnly()) {
-                writeGroupsEnabled = true;
-            }
+        } else if (!isReadOnly()) {
+            writeGroupsEnabled = true;
         }
         if (writeGroupsEnabled) {
             readGroupsEnabled = true;
@@ -146,7 +144,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         properties.put(UserCoreConstants.DATA_SOURCE, dataSource);
 
         if (log.isDebugEnabled()) {
-            log.debug("The AWSDataSource being used by AWSUserStoreManager :: " + dataSource.hashCode());
+            log.debug("The AWSDataSource being used by AWSUserStoreManager : " + dataSource.hashCode());
         }
         domain = realmConfig.getUserStoreProperty(UserCoreConstants.RealmConfig.PROPERTY_DOMAIN_NAME);
         /*
@@ -175,7 +173,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         }
         boolean isExistingRole = checkExistenceOfUserOrRole(pathToRoles, roleName);
         if (log.isDebugEnabled()) {
-            log.debug("Role: " + roleName + " is exists in user store");
+            log.debug("Role: " + roleName + " exists in user store");
         }
         return isExistingRole;
     }
@@ -183,9 +181,9 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
     /**
      * Adds the user to the user store.
      *
-     * @param userName              of new user.
-     * @param credential            of new user.
-     * @param roleList              of new user.
+     * @param userName              userName of of new user.
+     * @param credential            credentials of new user.
+     * @param roleList              role list of new user.
      * @param claims                user claim values.
      * @param profileName           user profile name.
      * @param requirePasswordChange Status to change password.
@@ -219,20 +217,20 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
                     "user name", userName));
         }
 
-        Map<String, String> map = new HashMap<>();
+        Map<String, String> attributes = new HashMap<>();
         byte[] passwordToStore = UserCoreUtil.getPasswordToStore(credential, passwordHashMethod, false);
 
-        map.put(userNameAttribute, userName);
-        map.put(passwordAttribute, new String(passwordToStore));
+        attributes.put(userNameAttribute, userName);
+        attributes.put(passwordAttribute, new String(passwordToStore));
         boolean hasRoles = roleList != null && roleList.length > 0;
-        if (membershipType.equals(AWSConstants.ATTRIBUTE) && hasRoles) {
-            map.put(membershipAttribute, String.join(",", roleList));
+        if (AWSConstants.ATTRIBUTE.equals(membershipType) && hasRoles) {
+            attributes.put(membershipAttribute, String.join(",", roleList));
         }
         if (MapUtils.isNotEmpty(claims)) {
             Map<String, String> claimList = getClaimAttributes(userName, claims);
-            map.putAll(claimList);
+            attributes.putAll(claimList);
         }
-        awsActions.createObject(userName, facetNameOfUser, pathToUsers, map);
+        awsActions.createObject(userName, facetNameOfUser, pathToUsers, attributes);
         if (hasRoles) {
             // Add roles to user.
             addRolesToUser(userName, roleList);
@@ -249,11 +247,11 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
     public void doDeleteUser(String userName) throws UserStoreException {
 
         String selector = pathToUsers + "/" + userName;
-        if (membershipType.equals(AWSConstants.LINK)) {
+        if (AWSConstants.LINK.equals(membershipType)) {
             // List and detach all outgoing typed links from a user object.
             JSONObject outgoingTypedLinks = awsActions.listOutgoingTypedLinks(null, selector);
             detachOutgoingTypedLinks(outgoingTypedLinks);
-        } else if (membershipType.equals(AWSConstants.ATTRIBUTE)) {
+        } else if (AWSConstants.ATTRIBUTE.equals(membershipType)) {
             // Remove the user from all role objects.
             removeUserFromRoles(userName);
         }
@@ -274,13 +272,17 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      */
     protected void removeUserFromRoles(String userName) throws UserStoreException {
 
-        Map<String, String> map = new HashMap<>();
-        List<String> attributes = new LinkedList<>();
+        Map<String, String> attributeMap = new HashMap<>();
+        List<String> jsonObjectList = new LinkedList<>();
         String nextToken = null;
         do {
             JSONObject listChildren = awsActions.listObjectChildren(nextToken, pathToRoles);
             Object token = listChildren.get(AWSConstants.NEXT_TOKEN);
-            nextToken = (token != null) ? token.toString() : null;
+            if (token != null) {
+                nextToken = token.toString();
+            } else {
+                nextToken = null;
+            }
             Object childrensObj = listChildren.get(AWSConstants.CHILDREN);
             JSONObject childrens = (childrensObj != null) ? (JSONObject) childrensObj : null;
             if (childrens != null) {
@@ -291,12 +293,13 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
                         List<String> updatedUserList = new LinkedList<>(Arrays.asList(existingUsers.split(",")));
                         updatedUserList.remove(userName);
 
-                        map.put(memberOfAttribute, String.join(",", updatedUserList));
-                        attributes.add(AWSConstants.UPDATE_ATTRIBUTES + awsActions.buildPayloadToUpdateObjectAttributes(
-                                AWSConstants.CREATE_OR_UPDATE, facetNameOfRole, keyValue, map) + "}");
+                        attributeMap.put(memberOfAttribute, String.join(",", updatedUserList));
+                        jsonObjectList.add(AWSConstants.UPDATE_ATTRIBUTES +
+                                awsActions.buildPayloadToUpdateObjectAttributes(AWSConstants.CREATE_OR_UPDATE,
+                                        facetNameOfRole, keyValue, attributeMap) + "}");
                     }
                 }
-                awsActions.batchWrite(AWSConstants.OPERATIONS + String.join(",", attributes) + "]}");
+                awsActions.batchWrite(AWSConstants.OPERATIONS + String.join(",", jsonObjectList) + "]}");
             }
         } while (StringUtils.isNotEmpty(nextToken));
     }
@@ -356,11 +359,11 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
                     UserCoreConstants.RealmConfig.PROPERTY_JAVA_REG_EX)));
         }
 
-        Map<String, String> map = new HashMap<>();
+        Map<String, String> attributes = new HashMap<>();
         byte[] passwordToStore = UserCoreUtil.getPasswordToStore(newCredential, passwordHashMethod, false);
-        map.put(passwordAttribute, new String(passwordToStore));
+        attributes.put(passwordAttribute, new String(passwordToStore));
         awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfUser, pathToUsers + "/"
-                + userName, map);
+                + userName, attributes);
     }
 
     /**
@@ -397,7 +400,11 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         do {
             JSONObject objectChildrens = awsActions.listObjectChildren(nextToken, selector);
             Object token = objectChildrens.get(AWSConstants.NEXT_TOKEN);
-            nextToken = (token != null) ? token.toString() : null;
+            if (token != null) {
+                nextToken = token.toString();
+            } else {
+                nextToken = null;
+            }
             if (objectChildrens.get(AWSConstants.CHILDREN) != null) {
                 JSONObject childrens = (JSONObject) objectChildrens.get(AWSConstants.CHILDREN);
                 for (Object key : childrens.keySet()) {
@@ -427,13 +434,13 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
             throw new UserStoreException(String.format("RoleName : %s exists in the system. Please pick another " +
                     "role name", roleName));
         }
-        Map<String, String> map = new HashMap<>();
-        map.put(roleNameAttribute, roleName);
+        Map<String, String> attributes = new HashMap<>();
+        attributes.put(roleNameAttribute, roleName);
         boolean hasUsers = userList != null && userList.length > 0;
-        if (membershipType.equals(AWSConstants.ATTRIBUTE) && hasUsers) {
-            map.put(memberOfAttribute, String.join(",", userList));
+        if (AWSConstants.ATTRIBUTE.equals(membershipType) && hasUsers) {
+            attributes.put(memberOfAttribute, String.join(",", userList));
         }
-        awsActions.createObject(roleName, facetNameOfRole, pathToRoles, map);
+        awsActions.createObject(roleName, facetNameOfRole, pathToRoles, attributes);
         if (hasUsers) {
             // Add users to role.
             addUsersToRole(userList, roleName);
@@ -450,11 +457,11 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
     public void doDeleteRole(String roleName) throws UserStoreException {
 
         String selector = pathToRoles + "/" + roleName;
-        if (membershipType.equals(AWSConstants.LINK)) {
+        if (AWSConstants.LINK.equals(membershipType)) {
             // List and detach all incoming typed links to role object.
             JSONObject incomingTypedLinks = awsActions.listIncomingTypedLinks(null, selector);
             detachIncomingTypedLinks(incomingTypedLinks);
-        } else if (membershipType.equals(AWSConstants.ATTRIBUTE)) {
+        } else if (AWSConstants.ATTRIBUTE.equals(membershipType)) {
             // Remove a particular role from all user objects.
             removeRoleFromUsers(roleName);
         }
@@ -481,7 +488,11 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         do {
             JSONObject objectChildrens = awsActions.listObjectChildren(nextToken, pathToUsers);
             Object token = objectChildrens.get(AWSConstants.NEXT_TOKEN);
-            nextToken = (token != null) ? token.toString() : null;
+            if (token != null) {
+                nextToken = token.toString();
+            } else {
+                nextToken = null;
+            }
             if (objectChildrens.get(AWSConstants.CHILDREN) != null) {
                 JSONObject childrens = (JSONObject) objectChildrens.get(AWSConstants.CHILDREN);
                 for (Object key : childrens.keySet()) {
@@ -720,7 +731,11 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         do {
             JSONObject objectChildrens = awsActions.listObjectChildren(nextToken, selector);
             Object token = objectChildrens.get(AWSConstants.NEXT_TOKEN);
-            nextToken = (token != null) ? token.toString() : null;
+            if (token != null) {
+                nextToken = token.toString();
+            } else {
+                nextToken = null;
+            }
             if (objectChildrens.get(AWSConstants.CHILDREN) != null) {
                 JSONObject childrens = (JSONObject) objectChildrens.get(AWSConstants.CHILDREN);
                 for (Object key : childrens.keySet()) {
@@ -889,13 +904,13 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         if (deletedRoles != null && deletedRoles.length > 0) {
             for (String roleName : deletedRoles) {
                 String selector = pathToRoles + "/" + roleName.trim();
-                if (membershipType.equals(AWSConstants.LINK)) {
+                if (AWSConstants.LINK.equals(membershipType)) {
                     removeUserFromRoleByLink(selector, userName);
-                } else if (membershipType.equals(AWSConstants.ATTRIBUTE)) {
+                } else if (AWSConstants.ATTRIBUTE.equals(membershipType)) {
                     removeUserFromRoleByAttribute(selector, userName);
                 }
             }
-            if (membershipType.equals(AWSConstants.ATTRIBUTE)) {
+            if (AWSConstants.ATTRIBUTE.equals(membershipType)) {
                 removeRolesFromUser(userName, deletedRoles);
             }
         }
@@ -1017,13 +1032,13 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         if (deletedUsers != null && deletedUsers.length > 0) {
             for (String userName : deletedUsers) {
                 String selector = pathToUsers + "/" + userName.trim();
-                if (membershipType.equals(AWSConstants.LINK)) {
+                if (AWSConstants.LINK.equals(membershipType)) {
                     removeRoleFromUserByLink(selector, roleName);
-                } else if (membershipType.equals(AWSConstants.ATTRIBUTE)) {
+                } else if (AWSConstants.ATTRIBUTE.equals(membershipType)) {
                     removeRoleFromUserByAttribute(selector, roleName);
                 }
             }
-            if (membershipType.equals(AWSConstants.ATTRIBUTE)) {
+            if (AWSConstants.ATTRIBUTE.equals(membershipType)) {
                 String selector = pathToRoles + "/" + roleName;
                 String existingUsers = getAttributeValue(facetNameOfRole, selector, memberOfAttribute);
                 if (StringUtils.isNotEmpty(existingUsers)) {
@@ -1168,7 +1183,11 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
         do {
             JSONObject objectChildrens = awsActions.listObjectChildren(nextToken, pathToUsers);
             Object token = objectChildrens.get(AWSConstants.NEXT_TOKEN);
-            nextToken = (token != null) ? token.toString() : null;
+            if (token != null) {
+                nextToken = token.toString();
+            } else {
+                nextToken = null;
+            }
             Object object = objectChildrens.get(AWSConstants.CHILDREN);
             JSONObject childrens = (object != null) ? (JSONObject) object : null;
             getUserList(userList, childrens, property, value);
@@ -1639,7 +1658,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
             }
         }
         typedLinkFacetName = AWSConstants.USER_ROLE_ASSOCIATION;
-        if (membershipType.equals(AWSConstants.LINK) &&
+        if (AWSConstants.LINK.equals(membershipType) &&
                 awsActions.getTypedLinkFacetInformation(typedLinkFacetName) == null) {
             List attributes = Arrays.asList(userNameAttribute, roleNameAttribute);
             awsActions.createTypedLinkFacet(typedLinkFacetName, attributes);
@@ -1672,7 +1691,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
                 map.put(userNameAttribute, userName);
                 map.put(roleNameAttribute, roleName);
                 awsActions.attachTypedLink(sourceSelector, targetSelector, typedLinkFacetName, map);
-            } else if (membershipType.equals(AWSConstants.ATTRIBUTE)) {
+            } else if (AWSConstants.ATTRIBUTE.equals(membershipType)) {
                 String[] roleList = {roleName};
                 updateUserWithRoles(roleList, userName);
             }
@@ -1713,7 +1732,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
     protected void updateUserListOfRole(String[] userList, String roleName) throws UserStoreException {
 
         addUsersToRole(userList, roleName);
-        if (membershipType.equals(AWSConstants.ATTRIBUTE)) {
+        if (AWSConstants.ATTRIBUTE.equals(membershipType)) {
             updateRoleWithUsers(userList, roleName);
         }
         if (log.isDebugEnabled()) {
@@ -1745,7 +1764,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
     protected void updateRolesListOfUser(String userName, String[] roleList) throws UserStoreException {
 
         addRolesToUser(userName, roleList);
-        if (membershipType.equals(AWSConstants.ATTRIBUTE)) {
+        if (AWSConstants.ATTRIBUTE.equals(membershipType)) {
             updateUserWithRoles(roleList, userName);
         }
         if (log.isDebugEnabled()) {
@@ -1832,7 +1851,11 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
             JSONObject directoryObjects = awsActions.listDirectories(nextToken);
             if (directoryObjects != null) {
                 Object token = directoryObjects.get(AWSConstants.NEXT_TOKEN);
-                nextToken = (token != null) ? token.toString() : null;
+                if (token != null) {
+                    nextToken = token.toString();
+                } else {
+                    nextToken = null;
+                }
                 JSONArray directories = (JSONArray) directoryObjects.get(AWSConstants.DIRECTORIES);
                 for (Object directory : directories) {
                     Object arn = ((JSONObject) directory).get(AWSConstants.DIRECTORY_ARN);
