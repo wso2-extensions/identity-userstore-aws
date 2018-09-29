@@ -22,6 +22,7 @@ import org.apache.commons.collections.MapUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.aws.user.store.mgt.AWSConstants;
+import org.wso2.carbon.user.core.UserStoreException;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -79,7 +80,7 @@ public class AWSSignatureV4Generator {
      *
      * @return Canonical Request.
      */
-    private String prepareCanonicalRequest() {
+    private String prepareCanonicalRequest() throws UserStoreException {
 
         StringBuilder canonicalURL = new StringBuilder("");
 
@@ -91,30 +92,16 @@ public class AWSSignatureV4Generator {
         canonicalURL.append(canonicalURI).append("\n");
 
         // Step 1.3 Add the canonical query string, followed by a newline character.
-        StringBuilder queryString = new StringBuilder("");
-        if (queryParametes != null && MapUtils.isNotEmpty(queryParametes)) {
-            for (Map.Entry<String, String> entrySet : queryParametes.entrySet()) {
-                String key = entrySet.getKey();
-                String value = entrySet.getValue();
-                queryString.append(key).append("=").append(encodeParameter(value)).append("&");
-            }
-            queryString.deleteCharAt(queryString.lastIndexOf("&"));
-            queryString.append("\n");
-        } else {
-            queryString.append("\n");
-        }
-        canonicalURL.append(queryString);
+        canonicalURL = addCanonicalQueryString(canonicalURL);
 
         // Step 1.4 Add the canonical headers, followed by a newline character.
         StringBuilder signedHeaders = new StringBuilder("");
         if (awsHeaders != null && !awsHeaders.isEmpty()) {
             for (Map.Entry<String, String> entrySet : awsHeaders.entrySet()) {
                 String key = entrySet.getKey();
-                String value = entrySet.getValue();
                 signedHeaders.append(key).append(";");
-                canonicalURL.append(key).append(":").append(value).append("\n");
+                canonicalURL.append(key).append(":").append(entrySet.getValue()).append("\n");
             }
-
             /* Note: Each individual header is followed by a newline character, meaning the complete list ends with
              a newline character. */
             canonicalURL.append("\n");
@@ -140,9 +127,33 @@ public class AWSSignatureV4Generator {
     }
 
     /**
+     * Add the canonical query string, followed by a newline character.
+     *
+     * @param canonicalURL Canonical URL
+     * @return Updated canonicalURL
+     */
+    private StringBuilder addCanonicalQueryString(StringBuilder canonicalURL) throws UserStoreException {
+
+        StringBuilder queryString = new StringBuilder("");
+        if (queryParametes != null && MapUtils.isNotEmpty(queryParametes)) {
+            for (Map.Entry<String, String> entrySet : queryParametes.entrySet()) {
+                String key = entrySet.getKey();
+                String value = entrySet.getValue();
+                queryString.append(key).append("=").append(encodeParameter(value)).append("&");
+            }
+            queryString.deleteCharAt(queryString.lastIndexOf("&"));
+            queryString.append("\n");
+        } else {
+            queryString.append("\n");
+        }
+        canonicalURL.append(queryString);
+        return canonicalURL;
+    }
+
+    /**
      * Task 2: Create a String to Sign for Signature Version 4.
      */
-    private String prepareStringToSign(String canonicalURL) {
+    private String prepareStringToSign(String canonicalURL) throws UserStoreException {
 
         String stringToSign;
 
@@ -169,7 +180,7 @@ public class AWSSignatureV4Generator {
     /**
      * Task 3: Calculate the AWS Signature Version 4.
      */
-    private String calculateSignature(String stringToSign) {
+    private String calculateSignature(String stringToSign) throws UserStoreException {
 
         try {
             // Step 3.1 Derive your signing key.
@@ -181,9 +192,8 @@ public class AWSSignatureV4Generator {
             // Step 3.2.1 Encode signature (byte[]) to Hex.
             return bytesToHex(signature);
         } catch (UnsupportedEncodingException | InvalidKeyException | NoSuchAlgorithmException ex) {
-            log.error("Error while calculating the signature." + ex);
+            throw new UserStoreException("Error while calculating the signature." + ex);
         }
-        return null;
     }
 
     /**
@@ -192,7 +202,7 @@ public class AWSSignatureV4Generator {
      *
      * @return Headers.
      */
-    public Map<String, String> getHeaders() {
+    public Map<String, String> getHeaders() throws UserStoreException {
 
         awsHeaders.put(AWSConstants.DATE_HEADER, xAmzDate);
 
@@ -205,20 +215,17 @@ public class AWSSignatureV4Generator {
         // Execute Task 3: Calculate the AWS Signature Version 4.
         String signature = calculateSignature(stringToSign);
 
-        if (signature != null) {
-            Map<String, String> header = new HashMap<>(0);
-            header.put(AWSConstants.DATE_HEADER, xAmzDate);
-            header.put(AWSConstants.AUTHORIZATION_HEADER, buildAuthorizationString(signature));
+        Map<String, String> header = new HashMap<>(0);
+        header.put(AWSConstants.DATE_HEADER, xAmzDate);
+        header.put(AWSConstants.AUTHORIZATION_HEADER, buildAuthorizationString(signature));
 
-            if (log.isDebugEnabled()) {
-                log.debug(String.format("Signature: %s. Headers: ", signature));
-                for (Map.Entry<String, String> entrySet : header.entrySet()) {
-                    log.debug(entrySet.getKey() + " = " + entrySet.getValue());
-                }
+        if (log.isDebugEnabled()) {
+            log.debug(String.format("Signature: %s. Headers: ", signature));
+            for (Map.Entry<String, String> entrySet : header.entrySet()) {
+                log.debug(entrySet.getKey() + " = " + entrySet.getValue());
             }
-            return header;
         }
-        return null;
+        return header;
     }
 
     /**
@@ -242,7 +249,7 @@ public class AWSSignatureV4Generator {
      * @param data text to be hashed
      * @return SHA-256 hashed text
      */
-    private String hash(String data) {
+    private String hash(String data) throws UserStoreException {
 
         MessageDigest messageDigest;
         try {
@@ -251,9 +258,8 @@ public class AWSSignatureV4Generator {
             byte[] digest = messageDigest.digest();
             return String.format("%064x", new java.math.BigInteger(1, digest));
         } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
-            log.error("Error while hashing the string contents." + e);
+            throw new UserStoreException("Error while hashing the string contents." + e);
         }
-        return null;
     }
 
     /**
@@ -325,7 +331,7 @@ public class AWSSignatureV4Generator {
     private String getTimeStamp() {
 
         DateFormat dateFormat = new SimpleDateFormat(AWSConstants.DATE_TIME_FORMAT);
-        dateFormat.setTimeZone(TimeZone.getTimeZone(AWSConstants.UTC));//server timezone
+        dateFormat.setTimeZone(TimeZone.getTimeZone(AWSConstants.UTC));// Set the server time as UTC
         return dateFormat.format(new Date());
     }
 
@@ -337,7 +343,7 @@ public class AWSSignatureV4Generator {
     private String getDate() {
 
         DateFormat dateFormat = new SimpleDateFormat(AWSConstants.DATE_FORMAT);
-        dateFormat.setTimeZone(TimeZone.getTimeZone(AWSConstants.UTC));//server timezone
+        dateFormat.setTimeZone(TimeZone.getTimeZone(AWSConstants.UTC));// Set the server time as UTC
         return dateFormat.format(new Date());
     }
 
@@ -347,12 +353,12 @@ public class AWSSignatureV4Generator {
      * @param param String value that need to be encode.
      * @return encoded string.
      */
-    private String encodeParameter(String param) {
+    private String encodeParameter(String param) throws UserStoreException {
 
         try {
             return URLEncoder.encode(param, AWSConstants.UTF_8);
         } catch (UnsupportedEncodingException e) {
-            return URLEncoder.encode(param);
+            throw new UserStoreException(AWSConstants.ERROR_WHILE_CHARACTOR_ENCODING + e);
         }
     }
 

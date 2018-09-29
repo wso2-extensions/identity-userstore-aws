@@ -27,6 +27,7 @@ import org.apache.http.client.methods.HttpPut;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -38,7 +39,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
-import java.util.LinkedList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -92,17 +93,14 @@ public class AWSRestApiActions {
         }
         TreeMap<String, String> awsHeaders = new TreeMap<>();
         String canonicalURI = baseURI + AWSConstants.LIST_DIRECTORIES;
-        String payload = buildPayloadTolistDirectories(nextToken);
+        String payload = buildPayloadToListDirectories(nextToken).toJSONString();
         if (log.isDebugEnabled()) {
             log.debug(String.format("Payload to list directories : %s ", payload));
         }
         HttpPost httpPost = preparePostHeaders(canonicalURI, awsHeaders, payload);
-        Object[] result = getHttpPostResults(httpPost);
-        int statusCode = 0;
-        if (result[0] != null) {
-            statusCode = (Integer) result[0];
-        }
-        JSONObject responseObject = (JSONObject) result[1];
+        HTTPResponse result = getHttpPostResults(httpPost);
+        int statusCode = result.statusCode;
+        JSONObject responseObject = result.responseObject;
         if (statusCode == HttpStatus.SC_OK) {
             return responseObject;
         } else {
@@ -130,18 +128,15 @@ public class AWSRestApiActions {
         TreeMap<String, String> awsHeaders = new TreeMap<>();
         awsHeaders.put(AWSConstants.PARTITION_HEADER, directoryArn);
 
-        String payload = buildPayloadToGetTypedLink(typedLinkName, objectReference);
+        String payload = buildPayloadToGetTypedLink(typedLinkName, objectReference).toJSONString();
         if (log.isDebugEnabled()) {
             log.debug(String.format("Payload to get outgoing TypedLinkSpecifier information : %s ", payload));
         }
         HttpPost httpPost = preparePostHeaders(canonicalURI, awsHeaders, payload);
         httpPost.setHeader(AWSConstants.PARTITION_HEADER, directoryArn);
-        Object[] result = getHttpPostResults(httpPost);
-        int statusCode = 0;
-        if (result[0] != null) {
-            statusCode = (Integer) result[0];
-        }
-        JSONObject responseObject = (JSONObject) result[1];
+        HTTPResponse result = getHttpPostResults(httpPost);
+        int statusCode = result.statusCode;
+        JSONObject responseObject = result.responseObject;
         if (statusCode == HttpStatus.SC_OK) {
             return responseObject;
         } else {
@@ -168,19 +163,16 @@ public class AWSRestApiActions {
         String canonicalURI = baseURI + AWSConstants.LIST_INCOMING_TYPEDLINK;
         TreeMap<String, String> awsHeaders = new TreeMap<>();
         awsHeaders.put(AWSConstants.PARTITION_HEADER, directoryArn);
-        String payload = buildPayloadToListIncomingTypedLinks(facetName, selector);
+        String payload = buildPayloadToGetTypedLink(facetName, selector).toJSONString();
         if (log.isDebugEnabled()) {
             log.debug(String.format("Payload to get incoming TypedLinkSpecifier information : %s ", payload));
         }
 
         HttpPost httpPost = preparePostHeaders(canonicalURI, awsHeaders, payload);
         httpPost.setHeader(AWSConstants.PARTITION_HEADER, directoryArn);
-        Object[] result = getHttpPostResults(httpPost);
-        int statusCode = 0;
-        if (result[0] != null) {
-            statusCode = (Integer) result[0];
-        }
-        JSONObject responseObject = (JSONObject) result[1];
+        HTTPResponse result = getHttpPostResults(httpPost);
+        int statusCode = result.statusCode;
+        JSONObject responseObject = result.responseObject;
         if (statusCode == HttpStatus.SC_OK) {
             return responseObject;
         } else {
@@ -212,12 +204,9 @@ public class AWSRestApiActions {
         }
         HttpPost httpPost = preparePostHeaders(canonicalURI, awsHeaders, payload);
         httpPost.setHeader(AWSConstants.PARTITION_HEADER, schemaArn);
-        Object[] result = getHttpPostResults(httpPost);
-        int statusCode = 0;
-        if (result[0] != null) {
-            statusCode = (Integer) result[0];
-        }
-        JSONObject responseObject = (JSONObject) result[1];
+        HTTPResponse result = getHttpPostResults(httpPost);
+        int statusCode = result.statusCode;
+        JSONObject responseObject = result.responseObject;
         if (statusCode == HttpStatus.SC_OK) {
             return responseObject;
         }
@@ -241,19 +230,17 @@ public class AWSRestApiActions {
         TreeMap<String, String> awsHeaders = new TreeMap<>();
         awsHeaders.put(AWSConstants.PARTITION_HEADER, schemaArn);
 
-        String payload = AWSConstants.ATTRIBUTE_STR + typedLinkFacetName + "\"}";
+        JSONObject payload = new JSONObject();
+        payload.put(AWSConstants.NAME, typedLinkFacetName);
+
         if (log.isDebugEnabled()) {
             log.debug(String.format("Payload to get typed link facet information : %s ", payload));
         }
-        HttpPost httpPost = preparePostHeaders(canonicalURI, awsHeaders, payload);
+        HttpPost httpPost = preparePostHeaders(canonicalURI, awsHeaders, payload.toJSONString());
         httpPost.setHeader(AWSConstants.PARTITION_HEADER, schemaArn);
-        Object[] result = getHttpPostResults(httpPost);
-        int statusCode = 0;
-        if (result[0] != null) {
-            statusCode = (Integer) result[0];
-        }
-        JSONObject responseObject = (JSONObject) result[1];
-
+        HTTPResponse result = getHttpPostResults(httpPost);
+        int statusCode = result.statusCode;
+        JSONObject responseObject = result.responseObject;
         if (statusCode == HttpStatus.SC_OK) {
             return responseObject;
         }
@@ -279,7 +266,7 @@ public class AWSRestApiActions {
         awsHeaders.put(AWSConstants.PARTITION_HEADER, directoryArn);
         awsHeaders.put(AWSConstants.CONSISTENCY_LEVEL_HEADER, AWSConstants.SERIALIZABLE);
 
-        String payload = buildPayloadTolistObjectChildren(nextToken, selector);
+        String payload = buildPayloadToListObjectChildren(nextToken, selector).toJSONString();
         if (log.isDebugEnabled()) {
             log.debug(String.format("Payload to list the child objects of a given object : %s ", payload));
         }
@@ -287,12 +274,9 @@ public class AWSRestApiActions {
         httpPost.setHeader(AWSConstants.PARTITION_HEADER, directoryArn);
         httpPost.setHeader(AWSConstants.CONSISTENCY_LEVEL_HEADER, AWSConstants.SERIALIZABLE);
 
-        Object[] result = getHttpPostResults(httpPost);
-        int statusCode = 0;
-        if (result[0] != null) {
-            statusCode = (Integer) result[0];
-        }
-        JSONObject responseObject = (JSONObject) result[1];
+        HTTPResponse result = getHttpPostResults(httpPost);
+        int statusCode = result.statusCode;
+        JSONObject responseObject = result.responseObject;
         if (statusCode == HttpStatus.SC_OK) {
             return responseObject;
         } else {
@@ -317,19 +301,21 @@ public class AWSRestApiActions {
         String canonicalURI = baseURI + AWSConstants.DELETE_OBJECT;
         TreeMap<String, String> awsHeaders = new TreeMap<>();
         awsHeaders.put(AWSConstants.PARTITION_HEADER, directoryArn);
-        String payload = "{" + AWSConstants.OBJECT_REFERENCE + selector + "\"}}";
+
+        HashMap<String, String> objectPath = new HashMap<>();
+        JSONObject payload = new JSONObject();
+        objectPath.put(AWSConstants.SELECTOR, selector);
+        payload.put(AWSConstants.REFERENCE, objectPath);
+
         if (log.isDebugEnabled()) {
             log.debug(String.format("Payload to delete an object : %s ", payload));
         }
 
-        HttpPut httpPut = preparePutHeaders(canonicalURI, awsHeaders, payload);
+        HttpPut httpPut = preparePutHeaders(canonicalURI, awsHeaders, payload.toJSONString());
         httpPut.setHeader(AWSConstants.PARTITION_HEADER, directoryArn);
-        Object[] result = getHttpPutResults(httpPut);
-        int statusCode = 0;
-        if (result[0] != null) {
-            statusCode = (Integer) result[0];
-        }
-        JSONObject responseObject = (JSONObject) result[1];
+        HTTPResponse result = getHttpPutResults(httpPut);
+        int statusCode = result.statusCode;
+        JSONObject responseObject = result.responseObject;
         if (statusCode == HttpStatus.SC_OK) {
             if (log.isDebugEnabled()) {
                 log.debug(String.format("Successfully deleted object. Response : %s", responseObject));
@@ -358,20 +344,16 @@ public class AWSRestApiActions {
         String canonicalURI = baseURI + AWSConstants.UPDATE_OBJECT;
         TreeMap<String, String> awsHeaders = new TreeMap<>();
         awsHeaders.put(AWSConstants.PARTITION_HEADER, directoryArn);
-        String payload = buildPayloadToUpdateObjectAttributes(action, facetName, objectReference, map);
+        String payload = buildPayloadToUpdateObjectAttributes(action, facetName, objectReference, map).toJSONString();
         if (log.isDebugEnabled()) {
             log.debug(String.format("Payload to update a given object's attributes : %s ", payload));
         }
         HttpPut httpPut = preparePutHeaders(canonicalURI, awsHeaders, payload);
         httpPut.setHeader(AWSConstants.PARTITION_HEADER, directoryArn);
 
-        Object[] result = getHttpPutResults(httpPut);
-        int statusCode = 0;
-        if (result[0] != null) {
-            statusCode = (Integer) result[0];
-        }
-        JSONObject responseObject = (JSONObject) result[1];
-
+        HTTPResponse result = getHttpPutResults(httpPut);
+        int statusCode = result.statusCode;
+        JSONObject responseObject = result.responseObject;
         if (statusCode == HttpStatus.SC_OK) {
             if (log.isDebugEnabled()) {
                 log.debug("Successfully updated object's attributes");
@@ -440,12 +422,9 @@ public class AWSRestApiActions {
         }
         HttpPut httpPut = preparePutHeaders(canonicalURI, awsHeaders, payload);
         httpPut.setHeader(AWSConstants.PARTITION_HEADER, directoryArn);
-        Object[] result = getHttpPutResults(httpPut);
-        int statusCode = 0;
-        if (result[0] != null) {
-            statusCode = (Integer) result[0];
-        }
-        JSONObject responseObject = (JSONObject) result[1];
+        HTTPResponse result = getHttpPutResults(httpPut);
+        int statusCode = result.statusCode;
+        JSONObject responseObject = result.responseObject;
         if (statusCode == HttpStatus.SC_OK) {
             if (log.isDebugEnabled()) {
                 log.debug("Successfully executed batch write operation.");
@@ -472,19 +451,16 @@ public class AWSRestApiActions {
         String canonicalURI = baseURI + AWSConstants.DETACH_OBJECT;
         TreeMap<String, String> awsHeaders = new TreeMap<>();
         awsHeaders.put(AWSConstants.PARTITION_HEADER, directoryArn);
-        String payload = buildPayloadToDetachObject(linkName, parentReference);
+        String payload = buildPayloadToDetachObject(linkName, parentReference).toJSONString();
         if (log.isDebugEnabled()) {
             log.debug(String.format("Payload to detach a given object from the parent object : %s ", payload));
         }
         HttpPut httpPut = preparePutHeaders(canonicalURI, awsHeaders, payload);
         httpPut.setHeader(AWSConstants.PARTITION_HEADER, directoryArn);
 
-        Object[] result = getHttpPutResults(httpPut);
-        int statusCode = 0;
-        if (result[0] != null) {
-            statusCode = (Integer) result[0];
-        }
-        JSONObject responseObject = (JSONObject) result[1];
+        HTTPResponse result = getHttpPutResults(httpPut);
+        int statusCode = result.statusCode;
+        JSONObject responseObject = result.responseObject;
         if (statusCode == HttpStatus.SC_OK) {
             return responseObject;
         } else {
@@ -511,20 +487,21 @@ public class AWSRestApiActions {
         awsHeaders.put(AWSConstants.PARTITION_HEADER, directoryArn);
         awsHeaders.put(AWSConstants.CONSISTENCY_LEVEL_HEADER, AWSConstants.SERIALIZABLE);
 
-        String payload = "{" + AWSConstants.OBJECT_REFERENCE + selector + "\"}}";
+        HashMap<String, String> objectPath = new HashMap<>();
+        JSONObject payload = new JSONObject();
+        objectPath.put(AWSConstants.SELECTOR, selector);
+        payload.put(AWSConstants.REFERENCE, objectPath);
+
         if (log.isDebugEnabled()) {
             log.debug(String.format("Payload to Retrieve metadata about an object : %s ", payload));
         }
-        HttpPost httpPost = preparePostHeaders(canonicalURI, awsHeaders, payload);
+        HttpPost httpPost = preparePostHeaders(canonicalURI, awsHeaders, payload.toJSONString());
         httpPost.setHeader(AWSConstants.PARTITION_HEADER, directoryArn);
         httpPost.setHeader(AWSConstants.CONSISTENCY_LEVEL_HEADER, AWSConstants.SERIALIZABLE);
 
-        Object[] result = getHttpPostResults(httpPost);
-        int statusCode = 0;
-        if (result[0] != null) {
-            statusCode = (Integer) result[0];
-        }
-        JSONObject responseObject = (JSONObject) result[1];
+        HTTPResponse result = getHttpPostResults(httpPost);
+        int statusCode = result.statusCode;
+        JSONObject responseObject = result.responseObject;
         if (statusCode == HttpStatus.SC_OK) {
             return responseObject;
         }
@@ -548,7 +525,7 @@ public class AWSRestApiActions {
         TreeMap<String, String> awsHeaders = new TreeMap<>();
         awsHeaders.put(AWSConstants.PARTITION_HEADER, directoryArn);
         awsHeaders.put(AWSConstants.CONSISTENCY_LEVEL_HEADER, AWSConstants.SERIALIZABLE);
-        String payload = buildPayloadToListObjectAttributes(facetName, objectReference);
+        String payload = buildPayloadToListObjectAttributes(facetName, objectReference).toJSONString();
         if (log.isDebugEnabled()) {
             log.debug(String.format("Payload to list all attributes of an object : %s ", payload));
         }
@@ -556,12 +533,9 @@ public class AWSRestApiActions {
         httpPost.setHeader(AWSConstants.PARTITION_HEADER, directoryArn);
         httpPost.setHeader(AWSConstants.CONSISTENCY_LEVEL_HEADER, AWSConstants.SERIALIZABLE);
 
-        Object[] result = getHttpPostResults(httpPost);
-        int statusCode = 0;
-        if (result[0] != null) {
-            statusCode = (Integer) result[0];
-        }
-        JSONObject responseObject = (JSONObject) result[1];
+        HTTPResponse result = getHttpPostResults(httpPost);
+        int statusCode = result.statusCode;
+        JSONObject responseObject = result.responseObject;
         if (statusCode == HttpStatus.SC_OK) {
             return responseObject;
         } else {
@@ -589,7 +563,8 @@ public class AWSRestApiActions {
         String canonicalURI = baseURI + AWSConstants.ATTACH_TYPEDLINK;
         TreeMap<String, String> awsHeaders = new TreeMap<>();
         awsHeaders.put(AWSConstants.PARTITION_HEADER, directoryArn);
-        String payload = buildPayloadToGetAttachTypedLink(sourceSelector, targetSelector, facetName, map);
+        String payload =
+                buildPayloadToGetAttachTypedLink(sourceSelector, targetSelector, facetName, map).toJSONString();
         if (log.isDebugEnabled()) {
             log.debug(String.format("Payload to attach a typed link to a specified source and target object : %s ",
                     payload));
@@ -597,12 +572,9 @@ public class AWSRestApiActions {
         HttpPut httpPut = preparePutHeaders(canonicalURI, awsHeaders, payload);
         httpPut.setHeader(AWSConstants.PARTITION_HEADER, directoryArn);
 
-        Object[] result = getHttpPutResults(httpPut);
-        int statusCode = 0;
-        if (result[0] != null) {
-            statusCode = (Integer) result[0];
-        }
-        JSONObject responseObject = (JSONObject) result[1];
+        HTTPResponse result = getHttpPutResults(httpPut);
+        int statusCode = result.statusCode;
+        JSONObject responseObject = result.responseObject;
         if (statusCode == HttpStatus.SC_OK) {
             if (log.isDebugEnabled()) {
                 log.debug(String.format("Successfully attached a typed link. Response : %s",
@@ -629,19 +601,16 @@ public class AWSRestApiActions {
         String canonicalURI = baseURI + AWSConstants.CREATE_TYPEDLINK;
         TreeMap<String, String> awsHeaders = new TreeMap<>();
         awsHeaders.put(AWSConstants.PARTITION_HEADER, schemaArn);
-        String payload = buildPayloadTogetTypedLinkFacet(facetName, attributes);
+        String payload = buildPayloadToGetTypedLinkFacet(facetName, attributes).toJSONString();
         if (log.isDebugEnabled()) {
             log.debug(String.format("Payload to create a TypedLinkFacet : %s ", payload));
         }
         HttpPut httpPut = preparePutHeaders(canonicalURI, awsHeaders, payload);
         httpPut.setHeader(AWSConstants.PARTITION_HEADER, schemaArn);
 
-        Object[] result = getHttpPutResults(httpPut);
-        int statusCode = 0;
-        if (result[0] != null) {
-            statusCode = (Integer) result[0];
-        }
-        JSONObject responseObject = (JSONObject) result[1];
+        HTTPResponse result = getHttpPutResults(httpPut);
+        int statusCode = result.statusCode;
+        JSONObject responseObject = result.responseObject;
         if (statusCode == HttpStatus.SC_OK) {
             if (log.isDebugEnabled()) {
                 log.debug(String.format("TypedLinkFacet is created successfully. Response : %s ",
@@ -672,19 +641,16 @@ public class AWSRestApiActions {
         String canonicalURI = baseURI + AWSConstants.CREATE_OBJECT;
         TreeMap<String, String> awsHeaders = new TreeMap<>();
         awsHeaders.put(AWSConstants.PARTITION_HEADER, directoryArn);
-        String payload = buildPayloadToCreateObject(linkName, facetName, parentReference, map);
+        String payload = buildPayloadToCreateObject(linkName, facetName, parentReference, map).toJSONString();
         if (log.isDebugEnabled()) {
             log.debug(String.format("Payload to create an object in a directory : %s ", payload));
         }
         HttpPut httpPut = preparePutHeaders(canonicalURI, awsHeaders, payload);
         httpPut.setHeader(AWSConstants.PARTITION_HEADER, directoryArn);
 
-        Object[] result = getHttpPutResults(httpPut);
-        int statusCode = 0;
-        if (result[0] != null) {
-            statusCode = (Integer) result[0];
-        }
-        JSONObject responseObject = (JSONObject) result[1];
+        HTTPResponse result = getHttpPutResults(httpPut);
+        int statusCode = result.statusCode;
+        JSONObject responseObject = result.responseObject;
         if (statusCode == HttpStatus.SC_OK) {
             if (log.isDebugEnabled()) {
                 log.debug(String.format("Object is created successfull with ObjectIdentifier %s ",
@@ -711,19 +677,16 @@ public class AWSRestApiActions {
         String canonicalURI = baseURI + AWSConstants.CREATE_FACET;
         TreeMap<String, String> awsHeaders = new TreeMap<>();
         awsHeaders.put(AWSConstants.PARTITION_HEADER, schemaArn);
-        String facetPayload = buildPayloadToCreateSchemaFacet(facetName, map);
+        String facetPayload = buildPayloadToCreateSchemaFacet(facetName, map).toJSONString();
         if (log.isDebugEnabled()) {
             log.debug(String.format("Payload to create a new facet in a schema : %s ", facetPayload));
         }
         HttpPut httpPut = preparePutHeaders(canonicalURI, awsHeaders, facetPayload);
         httpPut.setHeader(AWSConstants.PARTITION_HEADER, schemaArn);
 
-        Object[] result = getHttpPutResults(httpPut);
-        int statusCode = 0;
-        if (result[0] != null) {
-            statusCode = (Integer) result[0];
-        }
-        JSONObject responseObject = (JSONObject) result[1];
+        HTTPResponse result = getHttpPutResults(httpPut);
+        int statusCode = result.statusCode;
+        JSONObject responseObject = result.responseObject;
         if (statusCode == HttpStatus.SC_OK) {
             if (log.isDebugEnabled()) {
                 log.debug("Schema facet is created successfully. Response Object : " + responseObject.toJSONString());
@@ -741,11 +704,17 @@ public class AWSRestApiActions {
      * @param selector  Path of the object in the directory structure.
      * @return Payload.
      */
-    private String buildPayloadTolistObjectChildren(String nextToken, String selector) {
+    private JSONObject buildPayloadToListObjectChildren(String nextToken, String selector) {
 
-        StringBuilder builder = getBuilder(nextToken);
-        builder.append(AWSConstants.OBJECT_REFERENCE).append(selector).append("\"}}");
-        return builder.toString();
+        HashMap<String, String> path = new HashMap<>();
+        path.put(AWSConstants.SELECTOR, selector);
+        JSONObject response = new JSONObject();
+        response.put(AWSConstants.MAX_RESULTS, AWSConstants.MAX_API_LIMIT);
+        response.put(AWSConstants.REFERENCE, path);
+        if (StringUtils.isNotEmpty(nextToken)) {
+            response.put(AWSConstants.NEXT_TOKEN, nextToken);
+        }
+        return response;
     }
 
     /**
@@ -754,21 +723,15 @@ public class AWSRestApiActions {
      * @param nextToken The pagination token.
      * @return Payload.
      */
-    private String buildPayloadTolistDirectories(String nextToken) {
+    private JSONObject buildPayloadToListDirectories(String nextToken) {
 
-        StringBuilder builder = getBuilder(nextToken);
-        builder.append(AWSConstants.ENABLED);
-        return builder.toString();
-    }
-
-    private StringBuilder getBuilder(String nextToken) {
-
-        StringBuilder builder = new StringBuilder();
-        builder.append(AWSConstants.MAXRESULTS);
+        JSONObject response = new JSONObject();
+        response.put(AWSConstants.MAX_RESULTS, AWSConstants.MAX_API_LIMIT);
+        response.put(AWSConstants.STATE, AWSConstants.ENABLED);
         if (StringUtils.isNotEmpty(nextToken)) {
-            builder.append(AWSConstants.NEXTTOKEN).append(nextToken).append("\",");
+            response.put(AWSConstants.NEXT_TOKEN, nextToken);
         }
-        return builder;
+        return response;
     }
 
     /**
@@ -780,21 +743,31 @@ public class AWSRestApiActions {
      * @param map            List of properties to build the payload.
      * @return Payload.
      */
-    private String buildPayloadToGetAttachTypedLink(String sourceSelector, String targetSelector, String facetName,
-                                                    Map<String, String> map) {
+    private JSONObject buildPayloadToGetAttachTypedLink(String sourceSelector, String targetSelector, String facetName,
+                                                        Map<String, String> map) {
 
-        StringBuilder builder = new StringBuilder();
-        List<String> attributes = new LinkedList<>();
+        JSONArray attributes = new JSONArray();
+        JSONObject response = new JSONObject();
         for (Map.Entry<String, String> entry : map.entrySet()) {
-            attributes.add(AWSConstants.ATTRIBUTE_NAME_STR + entry.getKey() + AWSConstants.STRING_STR
-                    + entry.getValue() + "\"}}");
+            HashMap<String, Object> attribute = new HashMap<>();
+            HashMap<String, Object> value = new HashMap<>();
+            attribute.put(AWSConstants.ATTRIBUTE_NAME, entry.getKey());
+            value.put(AWSConstants.STRING_VALUE, entry.getValue());
+            attribute.put(AWSConstants.VALUE, value);
+            attributes.add(attribute);
         }
-        builder.append(AWSConstants.ATTRIBUTES_STR).append(String.join(",", attributes))
-                .append(AWSConstants.SOURCE_REFERENCE).append(sourceSelector)
-                .append(AWSConstants.TARGET_REFERENCE).append(targetSelector)
-                .append(AWSConstants.TYPEDLINK_FACET).append(schemaArn)
-                .append(AWSConstants.TYPED_LINK_NAME).append(facetName).append("\"}}");
-        return builder.toString();
+        response.put(AWSConstants.ATTRIBUTES, attributes);
+        HashMap sourcePath = new HashMap<>();
+        sourcePath.put(AWSConstants.SELECTOR, sourceSelector);
+        response.put(AWSConstants.SOURCE_REFERENCE, sourcePath);
+        HashMap targetPath = new HashMap<>();
+        targetPath.put(AWSConstants.SELECTOR, targetSelector);
+        response.put(AWSConstants.TARGET_REFERENCE, targetPath);
+        HashMap linkFacet = new HashMap<>();
+        linkFacet.put(AWSConstants.SCHEMA_ARN, schemaArn);
+        linkFacet.put(AWSConstants.TYPED_LINK_NAME, facetName);
+        response.put(AWSConstants.TYPEDLINK_FACET, linkFacet);
+        return response;
     }
 
     /**
@@ -804,10 +777,18 @@ public class AWSRestApiActions {
      * @param objectReference The reference that identifies the object in the directory structure.
      * @return Payload.
      */
-    private String buildPayloadToListObjectAttributes(String facetName, String objectReference) {
+    private JSONObject buildPayloadToListObjectAttributes(String facetName, String objectReference) {
 
-        return AWSConstants.FACET_FILTER + facetName + AWSConstants.SCHEMAARN + schemaArn + AWSConstants.OBJECT_REF
-                + objectReference + "\"}}";
+        HashMap<String, String> facetFilter = new HashMap<>();
+        HashMap<String, String> path = new HashMap<>();
+        JSONObject response = new JSONObject();
+        facetFilter.put(AWSConstants.FACET_NAME, facetName);
+        facetFilter.put(AWSConstants.SCHEMA_ARN, schemaArn);
+        path.put(AWSConstants.SELECTOR, objectReference);
+        response.put(AWSConstants.FACET_FILTER, facetFilter);
+        response.put(AWSConstants.MAX_RESULTS, AWSConstants.MAX_API_LIMIT);
+        response.put(AWSConstants.REFERENCE, path);
+        return response;
     }
 
     /**
@@ -817,35 +798,19 @@ public class AWSRestApiActions {
      * @param objectReference The reference that identifies the object in the directory structure.
      * @return Payload.
      */
-    private String buildPayloadToGetTypedLink(String typedLinkName, String objectReference) {
+    private JSONObject buildPayloadToGetTypedLink(String typedLinkName, String objectReference) {
 
-        StringBuilder builder = new StringBuilder();
-        builder.append("{");
+        HashMap<String, String> path = new HashMap<>();
+        JSONObject response = new JSONObject();
+        path.put(AWSConstants.SELECTOR, objectReference);
         if (typedLinkName != null) {
-            builder.append(AWSConstants.FILTER_TYPEDLINK).append(schemaArn)
-                    .append(AWSConstants.TYPED_LINK_NAME).append(typedLinkName).append("\"}, ");
+            HashMap<String, String> filterTypedLink = new HashMap<>();
+            filterTypedLink.put(AWSConstants.SCHEMA_ARN, schemaArn);
+            filterTypedLink.put(AWSConstants.TYPED_LINK_NAME, typedLinkName);
+            response.put(AWSConstants.FILTER_TYPEDLINK, filterTypedLink);
         }
-        builder.append(AWSConstants.OBJECT_REFERENCE).append(objectReference).append("\"}}");
-        return builder.toString();
-    }
-
-    /**
-     * Generate payload to list incoming typedLinks.
-     *
-     * @param facetName Name of the Typed Link.
-     * @param selector  Path of the object in the directory structure.
-     * @return Payload.
-     */
-    private String buildPayloadToListIncomingTypedLinks(String facetName, String selector) {
-
-        StringBuilder builder = new StringBuilder();
-        builder.append("{");
-        if (StringUtils.isNotEmpty(facetName)) {
-            builder.append(AWSConstants.FILTER_TYPEDLINK)
-                    .append(schemaArn).append(AWSConstants.TYPED_LINK_NAME).append(facetName).append("\"}, ");
-        }
-        builder.append(AWSConstants.OBJECT_REFERENCE).append(selector).append("\"}}");
-        return builder.toString();
+        response.put(AWSConstants.REFERENCE, path);
+        return response;
     }
 
     /**
@@ -857,18 +822,31 @@ public class AWSRestApiActions {
      * @param map             List of properties to build the payload.
      * @return Payload.
      */
-    public String buildPayloadToUpdateObjectAttributes(String action, String facetName, String objectReference,
-                                                       Map<String, String> map) {
+    public JSONObject buildPayloadToUpdateObjectAttributes(String action, String facetName, String objectReference,
+                                                           Map<String, String> map) {
 
-        StringBuilder builder = new StringBuilder();
-        List<String> attributes = new LinkedList<>();
+        JSONArray attributeUpdates = new JSONArray();
+        JSONObject updateObjectAttribute = new JSONObject();
+        HashMap<String, String> objectRef = new HashMap<>();
         for (Map.Entry<String, String> entry : map.entrySet()) {
-            attributes.add(AWSConstants.OBJECT_ATTRIBUTE + action + AWSConstants.OBJECT_ATTRIBUTE_UPDATE
-                    + entry.getValue() + AWSConstants.OBJECT_ATTRIBUTE_KEY + facetName + AWSConstants.OBJECT_NAME
-                    + entry.getKey() + AWSConstants.SCHEMAARN + schemaArn + "\"}}");
+            HashMap<String, String> objectAttributeKey = new HashMap<>();
+            HashMap<String, String> objectAttributeUpdateValue = new HashMap<>();
+            HashMap<String, Object> objectAttributeAction = new HashMap<>();
+            HashMap<String, Object> attributeUpdate = new HashMap<>();
+            objectAttributeAction.put(AWSConstants.ATTRIBUTE_UPDATE_VALUE, objectAttributeUpdateValue);
+            objectAttributeAction.put(AWSConstants.ATTRIBUTE_ACTION_TYPE, action);
+            objectAttributeKey.put(AWSConstants.FACET_NAME, facetName);
+            objectAttributeKey.put(AWSConstants.SCHEMA_ARN, schemaArn);
+            attributeUpdate.put(AWSConstants.ATTRIBUTE_KEY, objectAttributeKey);
+            attributeUpdate.put(AWSConstants.ATTRIBUTE_ACTION, objectAttributeAction);
+            objectAttributeUpdateValue.put(AWSConstants.STRING_VALUE, entry.getValue());
+            objectAttributeKey.put(AWSConstants.NAME, entry.getKey());
+            attributeUpdates.add(attributeUpdate);
         }
-        return builder.append(AWSConstants.ATTRIBUTE_UPDATE).append(String.join(",", attributes))
-                .append(AWSConstants.OBJECT_SELECTOR).append(objectReference).append("\"}}").toString();
+        updateObjectAttribute.put(AWSConstants.ATTRIBUTE_UPDATES, attributeUpdates);
+        objectRef.put(AWSConstants.SELECTOR, objectReference);
+        updateObjectAttribute.put(AWSConstants.REFERENCE, objectRef);
+        return updateObjectAttribute;
     }
 
     /**
@@ -880,19 +858,35 @@ public class AWSRestApiActions {
      * @param map             List of properties to build the payload.
      * @return Payload.
      */
-    private String buildPayloadToCreateObject(String linkName, String facetName, String parentReference,
-                                              Map<String, String> map) {
+    private JSONObject buildPayloadToCreateObject(String linkName, String facetName, String parentReference,
+                                                  Map<String, String> map) {
 
-        StringBuilder builder = new StringBuilder();
-        List<String> attributes = new LinkedList<>();
+        HashMap<String, String> path = new HashMap<>();
+        HashMap<String, String> schemaFacet = new HashMap<>();
+        JSONArray schemaFacets = new JSONArray();
+        JSONObject response = new JSONObject();
+        JSONArray list = new JSONArray();
+        path.put(AWSConstants.SELECTOR, parentReference);
+        schemaFacet.put(AWSConstants.FACET_NAME, facetName);
+        schemaFacet.put(AWSConstants.SCHEMA_ARN, schemaArn);
+        schemaFacets.add(schemaFacet);
         for (Map.Entry<String, String> entry : map.entrySet()) {
-            attributes.add(AWSConstants.FACET_NAME + facetName + AWSConstants.OBJECT_NAME + entry.getKey()
-                    + AWSConstants.SCHEMAARN + schemaArn + AWSConstants.STRING_VALUE_STR + entry.getValue() + "\"}}");
+            HashMap<String, String> key = new HashMap<>();
+            HashMap<String, String> value = new HashMap<>();
+            HashMap<String, Object> objectAttribute = new HashMap<>();
+            key.put(AWSConstants.FACET_NAME, facetName);
+            key.put(AWSConstants.NAME, entry.getKey());
+            key.put(AWSConstants.SCHEMA_ARN, schemaArn);
+            value.put(AWSConstants.STRING_VALUE, entry.getValue());
+            objectAttribute.put(AWSConstants.KEY, key);
+            objectAttribute.put(AWSConstants.VALUE, value);
+            list.add(objectAttribute);
         }
-        return builder.append(AWSConstants.LINK_NAME).append(linkName).append(AWSConstants.OBJECT_ATTRIBUTE_LIST)
-                .append(String.join(",", attributes)).append(AWSConstants.PARENT_REFERENCE)
-                .append(parentReference).append(AWSConstants.SCHEMA_FACET).append(facetName)
-                .append(AWSConstants.SCHEMAARN).append(schemaArn).append("\"}]}").toString();
+        response.put(AWSConstants.LINK_NAME, linkName);
+        response.put(AWSConstants.OBJECT_ATTRIBUTE_LIST, list);
+        response.put(AWSConstants.PARENT_REFERENCE, path);
+        response.put(AWSConstants.SCHEMA_FACET, schemaFacets);
+        return response;
     }
 
     /**
@@ -902,18 +896,25 @@ public class AWSRestApiActions {
      * @param attributes List of attributes to build the payload.
      * @return Payload.
      */
-    private String buildPayloadTogetTypedLinkFacet(String facetName, List attributes) {
+    private JSONObject buildPayloadToGetTypedLinkFacet(String facetName, List attributes) {
 
-        StringBuilder builder = new StringBuilder();
-        List<String> attribute = new LinkedList<>();
-        List<String> attributeOrder = new LinkedList<>();
+        JSONArray attributeList = new JSONArray();
+        JSONObject response = new JSONObject();
+        JSONArray order = new JSONArray();
+        HashMap<String, Object> facet = new HashMap<>();
         for (Object key : attributes) {
-            attribute.add(AWSConstants.ATTRIBUTE_STR + key + AWSConstants.REQUIRED_BEHAVIOR);
-            attributeOrder.add("\"" + key + "\"");
+            HashMap<String, Object> attribute = new HashMap<>();
+            attribute.put(AWSConstants.NAME, key);
+            attribute.put(AWSConstants.REQUIRED_BEHAVIOR, AWSConstants.REQUIRED_ALWAYS);
+            attribute.put(AWSConstants.TYPE, AWSConstants.STRING);
+            attributeList.add(attribute);
+            order.add(key.toString());
         }
-        return builder.append(AWSConstants.FACET_ATTRIBUTE).append(String.join(",", attribute))
-                .append(AWSConstants.IDENTITY_ATTRIBUTE).append(String.join(",", attributeOrder))
-                .append(AWSConstants.NAME_STR).append(facetName).append("\"}}").toString();
+        facet.put(AWSConstants.ATTRIBUTES, attributeList);
+        facet.put(AWSConstants.IDENTITY_ATTRIBUTE, order);
+        facet.put(AWSConstants.NAME, facetName);
+        response.put(AWSConstants.FACET_STR, facet);
+        return response;
     }
 
     /**
@@ -923,9 +924,14 @@ public class AWSRestApiActions {
      * @param parentReference The parent reference to which this object will be attached.
      * @return Payload.
      */
-    private String buildPayloadToDetachObject(String linkName, String parentReference) {
+    private JSONObject buildPayloadToDetachObject(String linkName, String parentReference) {
 
-        return AWSConstants.LINK_NAME + linkName + AWSConstants.PARENT_SELECTOR + parentReference + "\"}}";
+        HashMap<String, String> path = new HashMap<>();
+        JSONObject response = new JSONObject();
+        path.put(AWSConstants.SELECTOR, parentReference);
+        response.put(AWSConstants.LINK_NAME, linkName);
+        response.put(AWSConstants.PARENT_REFERENCE, path);
+        return response;
     }
 
     /**
@@ -935,20 +941,29 @@ public class AWSRestApiActions {
      * @param map       List of properties to build the payload.
      * @return Payload.
      */
-    private String buildPayloadToCreateSchemaFacet(String facetName, Map<String, String> map) {
+    private JSONObject buildPayloadToCreateSchemaFacet(String facetName, Map<String, String> map) {
 
-        StringBuilder builder = new StringBuilder();
         boolean isImmutable = false;
         if (StringUtils.equals(facetName, AWSConstants.GROUP)) {
             isImmutable = true;
         }
-        List<String> attributes = new LinkedList<>();
+        HashMap<String, Object> attributeDefinition = new HashMap<>();
+        HashMap<String, Object> attribute = new HashMap<>();
+        JSONObject response = new JSONObject();
+        attributeDefinition.put(AWSConstants.IS_IMMUTABLE, isImmutable);
+        attributeDefinition.put(AWSConstants.TYPE, AWSConstants.STRING);
+        attribute.put(AWSConstants.ATTRIBUTE_DEFINITION, attributeDefinition);
+
         for (Map.Entry<String, String> entry : map.entrySet()) {
-            attributes.add(AWSConstants.ATTRIBUTE_DEFINITION + isImmutable + AWSConstants.STRING_TYPE + entry.getKey()
-                    + AWSConstants.REQUIRED + entry.getValue() + "\"}");
+            attribute.put(AWSConstants.NAME, entry.getKey());
+            attribute.put(AWSConstants.REQUIRED_BEHAVIOR, entry.getValue());
         }
-        return builder.append(AWSConstants.ATTRIBUTES_STR).append(String.join(",", attributes))
-                .append(AWSConstants.NAME_STR).append(facetName).append(AWSConstants.NODE).toString();
+        JSONArray attributes = new JSONArray();
+        attributes.add(attribute);
+        response.put(AWSConstants.ATTRIBUTES, attributes);
+        response.put(AWSConstants.NAME, facetName);
+        response.put(AWSConstants.OBJECT_TYPE, AWSConstants.NODE);
+        return response;
     }
 
     /**
@@ -958,7 +973,7 @@ public class AWSRestApiActions {
      * @return status code and response object
      * @throws UserStoreException If error occurred.
      */
-    private Object[] getHttpPostResults(HttpPost httpPost) throws UserStoreException {
+    private HTTPResponse getHttpPostResults(HttpPost httpPost) throws UserStoreException {
 
         int statusCode = 0;
         JSONObject responseObject = null;
@@ -975,7 +990,7 @@ public class AWSRestApiActions {
         } catch (IOException e) {
             handleException(AWSConstants.ERROR_WHILE_READING_RESPONSE, e);
         }
-        return new Object[]{statusCode, responseObject};
+        return new HTTPResponse(statusCode, responseObject);
     }
 
     /**
@@ -1023,7 +1038,7 @@ public class AWSRestApiActions {
      * @return status code and response object
      * @throws UserStoreException If error occurred.
      */
-    private Object[] getHttpPutResults(HttpPut httpPut) throws UserStoreException {
+    private HTTPResponse getHttpPutResults(HttpPut httpPut) throws UserStoreException {
 
         int statusCode = 0;
         JSONObject responseObject = null;
@@ -1040,7 +1055,7 @@ public class AWSRestApiActions {
         } catch (IOException e) {
             handleException(AWSConstants.ERROR_WHILE_READING_RESPONSE, e);
         }
-        return new Object[]{statusCode, responseObject};
+        return new HTTPResponse(statusCode, responseObject);
     }
 
     /**
@@ -1120,5 +1135,26 @@ public class AWSRestApiActions {
     private void handleException(String msg) throws UserStoreException {
 
         throw new UserStoreException(msg);
+    }
+
+    /**
+     * This class provide the facility to get the HTTP response details such as statuscode and response object as Json.
+     */
+    public static class HTTPResponse {
+
+        int statusCode;
+        JSONObject responseObject;
+
+        /**
+         * It will return HTTPResponse Object.
+         *
+         * @param statusCode     Status code of the http response.
+         * @param responseObject Response object as Json
+         */
+        HTTPResponse(int statusCode, JSONObject responseObject) {
+
+            this.statusCode = statusCode;
+            this.responseObject = responseObject;
+        }
     }
 }

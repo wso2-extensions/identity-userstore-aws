@@ -273,7 +273,8 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
     protected void removeUserFromRoles(String userName) throws UserStoreException {
 
         Map<String, String> attributeMap = new HashMap<>();
-        List<String> jsonObjectList = new LinkedList<>();
+        JSONObject response = new JSONObject();
+        JSONArray operations = new JSONArray();
         String nextToken = null;
         do {
             JSONObject listChildren = awsActions.listObjectChildren(nextToken, pathToRoles);
@@ -287,6 +288,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
             JSONObject childrens = (childrensObj != null) ? (JSONObject) childrensObj : null;
             if (childrens != null) {
                 for (Object key : childrens.keySet()) {
+                    HashMap<String, Object> operation = new HashMap<>();
                     String keyValue = pathToRoles + "/" + key.toString();
                     String existingUsers = getAttributeValue(facetNameOfRole, keyValue, memberOfAttribute);
                     if (StringUtils.isNotEmpty(existingUsers) && existingUsers.contains(userName)) {
@@ -294,12 +296,14 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
                         updatedUserList.remove(userName);
 
                         attributeMap.put(memberOfAttribute, String.join(",", updatedUserList));
-                        jsonObjectList.add(AWSConstants.UPDATE_ATTRIBUTES +
+                        operation.put(AWSConstants.UPDATE_OBJECT_ATTRIBUTES,
                                 awsActions.buildPayloadToUpdateObjectAttributes(AWSConstants.CREATE_OR_UPDATE,
-                                        facetNameOfRole, keyValue, attributeMap) + "}");
+                                        facetNameOfRole, keyValue, attributeMap));
+                        operations.add(operation);
                     }
                 }
-                awsActions.batchWrite(AWSConstants.OPERATIONS + String.join(",", jsonObjectList) + "]}");
+                response.put(AWSConstants.OPERATION, operations);
+                awsActions.batchWrite(response.toJSONString());
             }
         } while (StringUtils.isNotEmpty(nextToken));
     }
@@ -312,16 +316,21 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      */
     protected void detachOutgoingTypedLinks(JSONObject outgoingTypedLinks) throws UserStoreException {
 
+        JSONArray operations = new JSONArray();
         Object specifiers = outgoingTypedLinks.get(AWSConstants.TYPEDLINK_SPECIFIERS);
-        List<String> attributes = new LinkedList<>();
         JSONArray typedLinkSpecifiers = (specifiers != null) ? (JSONArray) specifiers : null;
+        JSONObject response = new JSONObject();
         if (typedLinkSpecifiers != null) {
             for (Object typedLinkSpecifier : typedLinkSpecifiers) {
-                String keyValue = ((JSONObject) typedLinkSpecifier).toJSONString();
-                attributes.add(AWSConstants.DETACH_TYPED_LINK + AWSConstants.TYPED_LINK_SPECIFIER + keyValue + "}}");
+                HashMap<String, Object> linkSpecifier = new HashMap<>();
+                HashMap<String, Object> typedLink = new HashMap<>();
+                linkSpecifier.put(AWSConstants.TYPED_LINK_SPECIFIER, typedLinkSpecifier);
+                typedLink.put(AWSConstants.DETACH_TYPED_LINK, linkSpecifier);
+                operations.add(typedLink);
             }
+            response.put(AWSConstants.OPERATION, operations);
+            awsActions.batchWrite(response.toJSONString());
         }
-        awsActions.batchWrite(AWSConstants.OPERATIONS + String.join(",", attributes) + "]}");
     }
 
     /**
@@ -483,7 +492,8 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
     protected void removeRoleFromUsers(String roleName) throws UserStoreException {
 
         Map<String, String> map = new HashMap<>();
-        List<String> attributes = new LinkedList<>();
+        JSONArray operations = new JSONArray();
+        JSONObject response = new JSONObject();
         String nextToken = null;
         do {
             JSONObject objectChildrens = awsActions.listObjectChildren(nextToken, pathToUsers);
@@ -503,11 +513,15 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
                         updatedRoleList.remove(roleName);
 
                         map.put(membershipAttribute, String.join(",", updatedRoleList));
-                        attributes.add(AWSConstants.UPDATE_ATTRIBUTES + awsActions.buildPayloadToUpdateObjectAttributes(
-                                AWSConstants.CREATE_OR_UPDATE, facetNameOfUser, value, map) + "}");
+                        HashMap<String, Object> updateObjectAttributes = new HashMap<>();
+                        updateObjectAttributes.put(AWSConstants.UPDATE_OBJECT_ATTRIBUTES,
+                                awsActions.buildPayloadToUpdateObjectAttributes(AWSConstants.CREATE_OR_UPDATE,
+                                        facetNameOfUser, value, map));
+                        operations.add(updateObjectAttributes);
                     }
                 }
-                awsActions.batchWrite(AWSConstants.OPERATIONS + String.join(",", attributes) + "]}");
+                response.put(AWSConstants.OPERATION, operations);
+                awsActions.batchWrite(response.toJSONString());
             }
         } while (StringUtils.isNotEmpty(nextToken));
     }
@@ -520,15 +534,20 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      */
     protected void detachIncomingTypedLinks(JSONObject incomingTypedLinks) throws UserStoreException {
 
+        JSONArray operations = new JSONArray();
+        JSONObject response = new JSONObject();
         Object specifiers = incomingTypedLinks.get(AWSConstants.LINK_SPECIFIERS);
-        List<String> attributes = new LinkedList<>();
         JSONArray linkSpecifiers = (specifiers != null) ? (JSONArray) specifiers : null;
         if (linkSpecifiers != null) {
             for (Object linkSpecifier : linkSpecifiers) {
-                String keyValue = ((JSONObject) linkSpecifier).toJSONString();
-                attributes.add(AWSConstants.DETACH_TYPED_LINK + AWSConstants.TYPED_LINK_SPECIFIER + keyValue + "}}");
+                HashMap<String, Object> specifier = new HashMap<>();
+                HashMap<String, Object> typedLink = new HashMap<>();
+                specifier.put(AWSConstants.TYPED_LINK_SPECIFIER, linkSpecifier);
+                typedLink.put(AWSConstants.DETACH_TYPED_LINK, specifier);
+                operations.add(typedLink);
             }
-            awsActions.batchWrite(AWSConstants.OPERATIONS + String.join(",", attributes) + "]}");
+            response.put(AWSConstants.OPERATION, operations);
+            awsActions.batchWrite(response.toJSONString());
         }
     }
 
@@ -652,7 +671,9 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
      */
     protected boolean matchFilter(String text, String filter) {
 
-        if (text == null || filter == null) return true;
+        if (text == null || filter == null) {
+            return true;
+        }
 
         StringBuilder builder = new StringBuilder(".*");
         for (StringTokenizer st = new StringTokenizer(filter, "%*", true); st.hasMoreTokens(); ) {
@@ -984,8 +1005,9 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
                 JSONObject keyValue = (JSONObject) linkSpecifier;
                 JSONArray identityAttributeValues = (JSONArray) keyValue.get(AWSConstants.IDENTITY_ATTRIBUTE_VALUES);
                 if (isUserNameExistInLink(identityAttributeValues, userName)) {
-                    String detachPayload = AWSConstants.TYPED_LINK_SPECIFIER + keyValue.toJSONString() + "}";
-                    int statusCode = awsActions.detachTypedLink(detachPayload);
+                    JSONObject response = new JSONObject();
+                    response.put(AWSConstants.TYPED_LINK_SPECIFIER, linkSpecifier);
+                    int statusCode = awsActions.detachTypedLink(response.toJSONString());
                     if (statusCode != 200) {
                         log.error(AWSConstants.ERROR_WHILE_DETACH_TYPED_LINK + keyValue.toJSONString());
                     }
@@ -1096,8 +1118,9 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
                 JSONObject keyValue = (JSONObject) typedLinkSpecifier;
                 JSONArray identityAttributeValues = (JSONArray) keyValue.get(AWSConstants.IDENTITY_ATTRIBUTE_VALUES);
                 if (isRoleNameExistInLink(identityAttributeValues, roleName)) {
-                    String detachPayload = AWSConstants.TYPED_LINK_SPECIFIER + keyValue.toJSONString() + "}";
-                    int statusCode = awsActions.detachTypedLink(detachPayload);
+                    JSONObject response = new JSONObject();
+                    response.put(AWSConstants.TYPED_LINK_SPECIFIER, typedLinkSpecifier);
+                    int statusCode = awsActions.detachTypedLink(response.toJSONString());
                     if (statusCode != 200) {
                         log.error(AWSConstants.ERROR_WHILE_DETACH_TYPED_LINK + keyValue.toJSONString());
                     }
@@ -1297,8 +1320,7 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
     @Override
     public boolean isReadOnly() {
 
-        return "true".equalsIgnoreCase(realmConfig.getUserStoreProperty(
-                UserCoreConstants.RealmConfig.PROPERTY_READ_ONLY));
+        return Boolean.parseBoolean(realmConfig.getUserStoreProperty(UserCoreConstants.RealmConfig.PROPERTY_READ_ONLY));
     }
 
     /**
@@ -1415,7 +1437,9 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
             log.debug(String.format("Processing user claim with Claim URI: %s. Mapped attribute: %s. " +
                     "Attribute value: %s", claimURI, attributeName, claimValue));
         }
-        map.put(attributeName, claimValue);
+        if (StringUtils.isNotEmpty(claimValue)) {
+            map.put(attributeName, claimValue);
+        }
         awsActions.updateObjectAttributes(AWSConstants.CREATE_OR_UPDATE, facetNameOfUser, pathToUsers + "/" + userName,
                 map);
     }
@@ -1461,11 +1485,14 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
             } catch (org.wso2.carbon.user.api.UserStoreException e) {
                 throw new UserStoreException(AWSConstants.ERROR_WHILE_GETTING_CLAIM_ATTRIBUTE + userName, e);
             }
+            String attributeValue = claims.get(entry.getKey());
             if (log.isDebugEnabled()) {
                 log.debug(String.format("Claim URI: %s. Mapped attribute: %s. Attribute value: %s", claimURI,
-                        attributeName, claims.get(entry.getKey())));
+                        attributeName, attributeValue));
             }
-            map.put(attributeName, claims.get(entry.getKey()));
+            if (StringUtils.isNotEmpty(attributeValue)) {
+                map.put(attributeName, attributeValue);
+            }
         }
         return map;
     }

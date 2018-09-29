@@ -20,6 +20,9 @@ package org.wso2.carbon.aws.user.store.mgt.internal;
 
 import org.wso2.carbon.user.core.service.RealmService;
 
+/**
+ * This class is used to handle the realm service.
+ */
 public class AWSUserStoreManagerServiceDataHolder {
 
     private static AWSUserStoreManagerServiceDataHolder instance = new AWSUserStoreManagerServiceDataHolder();

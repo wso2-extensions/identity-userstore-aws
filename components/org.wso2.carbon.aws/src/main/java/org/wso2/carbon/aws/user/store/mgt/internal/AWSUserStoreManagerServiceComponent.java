@@ -23,8 +23,8 @@ import org.apache.commons.logging.LogFactory;
 import org.osgi.service.component.ComponentContext;
 import org.wso2.carbon.aws.user.store.mgt.AWSUserStoreManager;
 import org.wso2.carbon.user.api.UserStoreManager;
+import org.wso2.carbon.user.core.UserStoreException;
 import org.wso2.carbon.user.core.service.RealmService;
-import org.wso2.carbon.user.core.tracker.UserStoreManagerRegistry;
 
 /**
  * @scr.component name="aws.user.store.mgt.dscomponent" immediate=true
@@ -43,16 +43,14 @@ public class AWSUserStoreManagerServiceComponent {
      *
      * @param context ComponentContext
      */
-    protected void activate(ComponentContext context) {
+    protected void activate(ComponentContext context) throws UserStoreException {
 
         try {
             UserStoreManager awsUserStoreManager = new AWSUserStoreManager();
             context.getBundleContext().registerService(UserStoreManager.class.getName(), awsUserStoreManager, null);
-
-            UserStoreManagerRegistry.init(context.getBundleContext());
             log.info("AWSUserStoreMgtDSComponent activated successfully.");
         } catch (Exception e) {
-            log.error("Failed to activate Carbon UserStoreMgtDSComponent ", e);
+            throw new UserStoreException("Failed to activate Carbon UserStoreMgtDSComponent ", e);
         }
     }
 

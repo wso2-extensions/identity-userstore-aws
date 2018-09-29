@@ -3,7 +3,7 @@
 This extension will allow users to use AWS cloud directory [API Doc](https://docs.aws.amazon.com/clouddirectory/latest/developerguide/what_is_cloud_directory.html) as
 the user store for WSO2 IS using [REST API](https://docs.aws.amazon.com/directoryservice/latest/APIReference/welcome.html).
 Cloud Directory is a specialized graph-based directory store that provides a foundational building block for developers. With Cloud Directory, we can organize directory objects into multiple hierarchies to support many organizational pivots and relationships across directory information.
-This AWS user store extension can be used as both primary and secondary user store for WSO2 IS. This extension is compatible with IS version 5.5.0.
+This AWS user store extension can be used as both primary and secondary user store for WSO2 IS. This extension is compatible with IS version 5.5.0, 5.6.0, 5.7.0.
 
 AWS user store manager configured with <b>org.wso2.carbon.aws.user.store.mgt.AWSUserStoreManager</b> user store manager class.
 
@@ -64,7 +64,7 @@ Then obtain the following property values and use it in the AWS user store confi
 }
 ```
 <br/><br/>
->> <b>NOTE : </b>If you are going to maintain set of claims(for example givenName, mobile, organizationName) in the user profile, you need to update the above mentioned schema as below :
+>> <b>NOTE : </b>If you are going to maintain set of claims(for example givenName, mail, sn, profileConfiguration) in the user profile, you need to update the above mentioned schema as below :
 
 ```json
  {
@@ -118,14 +118,21 @@ Then obtain the following property values and use it in the AWS user store confi
           },
           "requiredBehavior": "NOT_REQUIRED"
         },
-        "mobile": {
+        "mail": {
           "attributeDefinition": {
             "attributeType": "STRING",
             "isImmutable": false
           },
           "requiredBehavior": "NOT_REQUIRED"
         },
-        "organizationName": {
+        "sn": {
+          "attributeDefinition": {
+            "attributeType": "STRING",
+            "isImmutable": false
+          },
+          "requiredBehavior": "NOT_REQUIRED"
+        },
+        "profileConfiguration": {
           "attributeDefinition": {
             "attributeType": "STRING",
             "isImmutable": false
