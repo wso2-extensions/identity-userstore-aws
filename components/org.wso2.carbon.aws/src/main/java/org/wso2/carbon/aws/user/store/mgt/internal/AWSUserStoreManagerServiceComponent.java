@@ -49,7 +49,7 @@ public class AWSUserStoreManagerServiceComponent {
             UserStoreManager awsUserStoreManager = new AWSUserStoreManager();
             context.getBundleContext().registerService(UserStoreManager.class.getName(), awsUserStoreManager, null);
             log.info("AWSUserStoreMgtDSComponent activated successfully.");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             throw new UserStoreException("Failed to activate Carbon UserStoreMgtDSComponent ", e);
         }
     }
