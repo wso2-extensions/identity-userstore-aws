@@ -60,9 +60,9 @@ public class AWSUserStoreManager extends AbstractUserStoreManager {
     // Unique name to identify the user store.
     private String domain;
     private AWSRestApiActions awsActions;
-    // This is a path to identify the “Users” object in the tree structure.
+    // This is a path to identify the Users object in the tree structure.
     private String pathToUsers;
-    // This is a path to identify the “Roles” object in the tree structure.
+    // This is a path to identify the Roles object in the tree structure.
     private String pathToRoles;
     // Facet name of the user object.
     private String facetNameOfUser;
