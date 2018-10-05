@@ -1,17 +1,24 @@
-# AWS User Store Extension for WSO2 IS
+# AWS User Store Extension for WSO2 Identity Server
 
-This extension will allow users to use AWS cloud directory [API Doc](https://docs.aws.amazon.com/clouddirectory/latest/developerguide/what_is_cloud_directory.html) as
-the user store for WSO2 IS using [REST API](https://docs.aws.amazon.com/directoryservice/latest/APIReference/welcome.html).
-Cloud Directory is a specialized graph-based directory store that provides a foundational building block for developers. With Cloud Directory, we can organize directory objects into multiple hierarchies to support many organizational pivots and relationships across directory information.
-This AWS user store extension can be used as both primary and secondary user store for WSO2 IS. This extension is compatible with IS version 5.5.0, 5.6.0, 5.7.0.
+The AWS user store extension allows you to use [AWS Cloud Directory] (https://docs.aws.amazon.com/clouddirectory/latest/developerguide/what_is_cloud_directory.html) as
+a user store in WSO2 Identity Server using [REST API](https://docs.aws.amazon.com/directoryservice/latest/APIReference/welcome.html).
+AWS Cloud Directory is a specialized graph-based directory store that provides a foundational building block for developers. With AWS Cloud Directory, you can organise directory objects into multiple hierarchies to support many organizational pivots and relationships across directory information.
+You can use the AWS user store extension as the primary or secondary user store in WSO2 Identity Server. The AWS user store extension uses the `org.wso2.carbon.aws.user.store.mgt.AWSUserStoreManager` class to configure AWS user store manager.
 
-AWS user store manager configured with <b>org.wso2.carbon.aws.user.store.mgt.AWSUserStoreManager</b> user store manager class.
+> **NOTE**: AWS user store extension is compatible with WSO2 Identity Server 5.5.0, 5.6.0 as well as 5.7.0.
+
+The following topics provide information on how you can configure the AWS user store extension with WSO2 Identity Server and then use AWS as the primary or secondary user store in WSO2 Identity Server:
+
+- [Prerequisites](#prerequisites)
+- [Adding the AWS user store extension to WSO2 Identity Server](#adding-the-aws-user-store-extension-to-wso2-identity-server)
+- [Configuring AWS as the secondary user store](#configuring-aws-as-the-secondary-user-store)
+- [Configuring AWS as the primary user store](#configuring-aws-as-the-primary-user-store)
+- [AWS user store manager properties](#aws-user-store-manager-properties)
 
 ## Prerequisites
 
-As an initial step, end user needs to create the cloud directory by uploading the schema for the objects via AWS console. Please refer sample schema below that is used to configure the sample user store configuration in the following section.
-Then obtain the following property values and use it in the AWS user store configuration :  DirectoryArn, SchemaArn, FacetNameOfUser, FacetNameOfRole, UserNameAttribute, PasswordAttribute, MembershipAttribute, RoleNameAttribute, MemberOfAttribute.
-<br/><br/>
+1. Create a cloud directory by uploading the schema for the objects via the AWS console. You can take a look at following sample schema to configure the sample user store configuration:
+
 ```json
 {
  "facets": {
@@ -63,8 +70,8 @@ Then obtain the following property values and use it in the AWS user store confi
  }
 }
 ```
-<br/><br/>
->> <b>NOTE : </b>If you are going to maintain set of claims(for example givenName, mail, sn, profileConfiguration) in the user profile, you need to update the above mentioned schema as below :
+
+>**NOTE**: If you are going to maintain a set of claims such as *givenName*, *mail*, *sn*, and *profileConfiguration* in the user profile, you need to update the sample schema above as follows:
 
 ```json
  {
@@ -145,29 +152,48 @@ Then obtain the following property values and use it in the AWS user store confi
   }
  }
 ```
-<br/><br/>
-### Steps to Configure AWS as the Secondary User Store
+2. Obtain the following property values to use in the AWS user store configuration:
+- DirectoryArn 
+- SchemaArn
+- FacetNameOfUser
+- FacetNameOfRole
+- UserNameAttribute 
+- PasswordAttribute 
+- MembershipAttribute 
+- RoleNameAttribute 
+- MemberOfAttribute
 
-1. Download the AWS user store extension jar from [WSO2 store](https://store.wso2.com/store/assets/isconnector/list)
-2. Copy the downloaded jar and put it into the `IS_HOME/repository/components/dropins` folder.
-3. Finally, open a terminal, navigate to the `IS_HOME/bin` folder and start the IS server by executing the following command
-   ```bash
-      ./wso2server.sh
-   ```
+### Adding the AWS user store extension to WSO2 Identity Server
 
-4. Now you have successfully added the AWS user store extension to the WSO2 IS. You should see AWS user store listed along with other user stores IS management console UI. Using that you can create a AWS secondary user store and perform your user management operations.
+Follow the steps below to add the AWS user store extension to WSO2 Identity Server and confirm that you have successfully added the AWS user store extension to WSO2 Identity Server:
 
-   ```bash
-      Main > User Stores > Add
-   ```
+1. Go to [WSO2 store](https://store.wso2.com/store/assets/isconnector/details/f568ff1e-d746-47ce-b8cb-85f55e1e08a7) and download the AWS user store extension.
+2. Copy the downloaded jar to the `<IS_HOME>/repository/components/dropins` directory. Now you have added the AWS user store extension to WSO2 Identity Server.
+3. Open a terminal, navigate to the `<IS_HOME>/bin` directory, and then execute `./wso2server.sh` to start WSO2 Identity server.
+4. Access the Management Console via `https://localhost:9443/carbon`.
+5. Click the **Main** tab on the Management Console, and then click **Add** under **User Stores**. This displays the **Add New User Store** screen.
+6. Click the list of items related to **User Store Manager Class**. You will see **org.wso2.carbon.aws.user.store.mgt.AWSUserStoreManager** in the list. This confirms that you have successfully added the AWS user store extension to WSO2 Identity Server.
 
+Now that you have successfully added the AWS user store extension to WSO2 Identity Server, you can go ahead and configure AWS as the secondary user store.
 
-### Configuring AWS as the Primary User Store
+### Configuring AWS as the secondary user store
 
-The above configurations are good enough for you to use the AWS as a secondary user store manager. However, in order to use the AWS as the primary user store of WSO2 IS you need some additional configurations as follow.
+Follow the steps below to configure AWS as the secondary user store.
 
-5. After following steps 1-2, prior to start the IS server, add the following in the `user-mgt.xml` file of WSO2 IS. You can find this file inside `IS_HOME/repository/conf` folder.
-   Make sure to replace the following properties.
+1. In the **Add New User Store** screen, select **org.wso2.carbon.aws.user.store.mgt.AWSUserStoreManager** as the **User Store Manager Class**.
+2. Enter appropriate values in the **Domain Name** and **Description** fields.
+3. Enter appropriate values for all the mandatory AWS user store manager properties. For information on each property, see [AWS user store manager properties](#aws-user-store-manager-properties).
+
+### Configuring AWS as the primary user store
+
+>**NOTE**: If you want to configure AWS as the primary user store in WSO2 Identity Server, there are additional configurations that you need to perform.
+
+Follow the steps below to configure AWS as the primary user store in WSO2 Identity Server:
+
+1. Follow steps 1 and 2 under [Adding the AWS user store extension to WSO2 Identity Server](#adding-the-aws-user-store-extension-to-wso2-identity-server).
+2. Edit the `<IS_HOME>/repository/conf/user-mgt.xml` file and add the following configuration:
+
+>**NOTE**: When you add the following configuration, be sure to specify applicable values for the `AccessKeyID` and `SecretAccessKey`.
 
 #### user-mgt.xml
 
@@ -208,12 +234,12 @@ The above configurations are good enough for you to use the AWS as a secondary u
 </UserStoreManager>
 ```
 
-
 ##### Sample user store configurations and corresponding tree structures for AWS
 
-1. <b>Case 1 :</b> Use typed link to model relationships between different objects(Users, Roles).
+**Scenario 1**: Let's take a look at how to use typed links to model relationships between different objects (i.e., Users, Roles).
 
-    - Sample user store configuration :<br/><br/>
+Following is a sample user store configuration for the scenario:
+
         ``` xml
         <UserStoreManager class="org.wso2.carbon.aws.user.store.mgt.AWSUserStoreManager">
            <Property name="AccessKeyID">AGBMVJTFDRGJKOGFD</Property>
@@ -248,16 +274,18 @@ The above configurations are good enough for you to use the AWS as a secondary u
            <Property name="MaxRoleNameListLength">100</Property>
         </UserStoreManager>
         ```
-        <br/>
-        According to “MembershipTypeOfRoles” property in the above configuration, end user should use a link to model an ownership relationship between the user and role objects.
-        So the directory structure will be like <b>Figure 1</b>. For an example If we assign multiple roles such as Role1 and Role2 to User1, then to establish a relationship between
-        these objects we will create “typelinks” from User1 → Role1 and User1 → Role2.
+Based on the `MembershipTypeOfRoles` property in the above configuration, an end-user should use a link to model an ownership between the `Users` object and `Roles` object. Therefore, the directory structure should be similar to what is depicted in the following diagram:
 
+![alt text](docs/images/image1.png)
 
-    - Tree structure in AWS for the above configuration : <br/><br/>
-         ![alt text](docs/images/image1.png)
-2. <b>Case 2 :</b> Maintain the different objects(Users, Roles) relationship details as an attribute inside the Users and Roles object.
-    - Sample user store configuration : <br/><br/>
+For example, if you assign multiple roles such as Role1 and Role2 to User1, and you want to establish a relationship between the objects, you have to create the following typed links:
+
+- User1 → Role1
+- User1 → Role2
+
+**Scenario 2**: Let's take a look at how you can maintain different object relationship details (i.e., Users, Roles) as an attribute inside the `Users` object and `Roles` object.
+
+Following is a sample user store configuration for the scenario:
 
         ```xml
         <UserStoreManager class="org.wso2.carbon.aws.user.store.mgt.AWSUserStoreManager">
@@ -293,60 +321,55 @@ The above configurations are good enough for you to use the AWS as a secondary u
            <Property name="MaxRoleNameListLength">100</Property>
         </UserStoreManager>
         ```
-        <br/>
-        According to “MembershipTypeOfRoles” property in the above configuration, end user should use an attribute to keep an ownership relationship between the user and role objects.
-        So the directory structure will be like <b>Figure 2</b>. For an example if we assign multiple roles such as Role1 and Role2 to User1 then the relationship between these object
-        will be kept as an attribute inside the objects (Using Member attribute in Users object and Memberof attribute in Roles object) itself.
+        
+Based on the `MembershipTypeOfRoles` property in the above configuration, an end-user should use an attribute to keep an ownership relationship between the `Users` object and `Roles` object. Therefore, the directory structure should be similar to what is depicted in the following diagram:
 
+![alt text](docs/images/image2.png)
 
-    - Tree structure in AWS for the above configuration : <br/><br/>
-         ![alt text](docs/images/image2.png)
+For example, if you assign multiple roles such as Role1 and Role2 to User1, then the relationship between the objects should be kept as an attribute inside the object itself (i.e., Using the `member` attribute in the `Users` object and `Memberof` attribute in the `Roles` object).
 
+In the two scenarios described above, the additional attributes are kept inside each object as follows:
 
-In the above two cases, set of additional attributes will be kept inside each object such as,<br/>
-    For user object - UserName, Password and set of claims. <br/>
-    For role object - RoleName.
+- The `Users` object will include `UserName`, `Password` and the set of claims.
+- The `Roles` object will include `RoleName`.
 
-<br/><br/>
-#### Properties used in AWS userstore manager
+#### AWS user store manager properties
 
-<br/>
 
 | Property | Description |
 | ------------- |-------------|
-| AccessKeyID | AWS access key ID |
-| SecretAccessKey | AWS secret access key |
-| Region | Region which is used to select a regional endpoint to make API requests |
-| APIVersion | Cloud directory API version |
-| PathToUsers | This is a path to identify the “Users” object in the tree structure. <br/><br/> A child link creates a parent–child relationship between the objects it connects. For example, in the above illustration(Figure 1) child link 'users' connects objects Org and Users. Child links have names when they participate in defining the path of the object that the link points to. So to construct the path for the "Users" object, use the link names from each parent/child link. Path selectors start with a slash (/) and link names are separated by slashes. <br/><br/> /some/path - Identifies the Users object based on path. <br/><br/> Eg :- For the above illustrated(Figure 1) tree structure PathToUsers will be /org/users |
-| PathToRoles | This is a path to identify the “Roles” object in the tree structure. <br/><br/> A child link creates a parent–child relationship between the objects it connects. For example, in the above illustration(Figure 1) child link ‘roles' connects objects Org and Roles.  Child links have names when they participate in defining the path of the object that the link points to. So to construct the path for the "Roles" object, use the link names from each parent/child link. Path selectors start with a slash (/) and link names are separated by slashes. <br/><br/> /some/path - Identifies the “Roles” object based on path. <br/><br/> Eg :- For the above illustrated(Figure 1) tree structure PathToRoles will be /org/roles |
-| MembershipTypeOfRoles | Indicates how you are going to maintain user and role objects relationship. <br/><br/> Possible values: link, attribute. <br/><br/> If you put link, then link enable you to establish a relationship between objects in Cloud Directory using Typed link. We can then use these relationships to query for information, such as list the roles that are assign to a particular user and list the users who has a particular role. <br/><br/> If you put attribute, then list the roles that are assign to a particular user and list the users who has a particular role will be keep as an attribute inside the node using MembershipAttribute, MemberOfAttribute attribute names. |
+| AccessKeyID | The AWS access key ID |
+| SecretAccessKey | The AWS secret access key |
+| Region | The Region that is used when selecting a regional endpoint to make API requests |
+| APIVersion | The cloud directory API version |
+| PathToUsers| The path to identify the `Users` object in the tree structure. <br/><br/> A child link creates a parent–child relationship between the objects that it connects. For example, in the diagram that depicts scenario 1, the Users child link connects `Org` and `Users` objects. <br/><br/> Child links have names when they participate in defining the path of the object that the link points to. Therefore, to construct the path for the `Users` object, you need to use the link names from each parent–child link. Path selectors start with a slash (/) and the link names are separated by slashes (i.e., `/some/path` identifies the `Users` object based on path).
+For example, if we consider the diagram that depicts scenario 1, `PathToUsers` will be `/org/users`.|
+| PathToRoles| The path to identify the `Roles` object in the tree structure. <br/><br/> A child link creates a parent–child relationship between the objects it connects. For example, in the diagram that depicts scenario 1, the Roles child link connects `Org` and `Roles` objects. <br/><br/> Child links have names when they participate in defining the path of the object that the link points to. Therefore, to construct the path for the `Roles` object, use the link names from each parent–child link. Path selectors start with a slash (/) and link names are separated by slashes (i.e., `/some/path` identifies the `Roles` object based on path). 
+For example, if we consider the diagram that depicts scenario 1, `PathToRoles` will be `/org/roles`.|
+| MembershipTypeOfRoles | Indicates how you are going to maintain user and role objects relationships. <br/><br/> Possible values are: `link`and `attribute`. <br/><br/> If you use link, you can establish a relationship between objects in Cloud Directory using typed links. You can then use these relationships to query for information. For example, to list the roles that are assigned to a particular user, to list the users who are assigned to a particular role. <br/><br/> If you use attribute, you can list the roles assigned to a particular user and list users who have a particular role. This maintains relationship between objects in an attribute inside the node using `MembershipAttribute` and `MemberOfAttribute`. |
 | DirectoryArn | Directory in which the object will be created. |
 | SchemaArn | Schema arn of the directory. |
 | FacetNameOfUser | Facet name of the user object. |
 | FacetNameOfRole | Facet name of the role object. |
-| ReadGroups | This Indicates whether groups should be read from the user store. <br/><br/> Possible values: <br/> true : Read groups from user store. <br/> false : Don’t read groups from user store |
-| WriteGroups | Indicates whether groups should be write to the user store. <br/><br/> Possible values: <br/> true : Write groups to user store. <br/> false : Don’t write groups to user store, so only internal roles can be created. |
-| Disabled | This is to deactivate the user store. If you need to temporarily deactivate a user store, you can use this option. If you disable the user store from the disable option it also will set this parameter. <br/> Default: false. <br/><br/> Possible values: <br/> true : Disable user store temporarily. |
-| UserNameAttribute | The name of the attribute is used to identify the user name of user entry. |
-| PasswordAttribute | The name of the attribute is used to identify the password of user entry. |
-| MembershipAttribute | This is an optional property. If you have set the value for MembershipTypeOfRoles as an attribute, then you need to set this property. Define the attribute that contains the distinguished names of user objects that are in a role. |
-| RoleNameAttribute | The name of the attribute is used to identify the role name of role entry. |
-| MemberOfAttribute | This is an optional property. <br/><br/> If you have set the value for MembershipTypeOfRoles as attribute then you need to set this property. Define the attribute that contains the distinguished names of role objects that user is assigned to. |
-| UserNameJavaRegEx | The regular expression used by the back-end components for username validation. By default, strings with non-empty characters have a length of 3 to 30 allowed. You can provide ranges of alphabets, numbers and also ranges of ASCII values in the RegEx properties. <br/><br/> Default: [a-zA-Z0-9._\-|//]{3,30}$ |
-| UserNameJavaScriptRegEx | The regular expression used by the front-end components for username validation. <br/><br/> Default: ^[\S]{3,30}$ |
-| UsernameJavaRegExViolationErrorMsg | Error message when the Username is not matched with UsernameJavaRegEx |
-| PasswordJavaRegEx | The regular expression used by the back-end components for password validation. By default, strings with non-empty characters have a length of 5 to 30 allowed. You can provide ranges of alphabets, numbers and also ranges of ASCII values in the RegEx properties. <br/><br/> Default: ^[\S]{5,30}$ |
-| PasswordJavaScriptRegEx | The regular expression used by the front-end components for password validation. <br/><br/> Default: ^[\S]{5,30}$ |
-| PasswordJavaRegExViolationErrorMsg | Error message when the Password is not matched with passwordJavaRegEx |
-| RoleNameJavaRegEx | The regular expression used by the back-end components for role name validation. By default, strings with non-empty characters have a length of 3 to 30 allowed. You can provide ranges of alphabets, numbers and also ranges of ASCII values in the RegEx properties. <br/><br/> Default: [a-zA-Z0-9._-|//]{3,30}$ |
-| RoleNameJavaScriptRegEx | The regular expression used by the front-end components for role name validation. |
-| PasswordHashMethod | Specifies the Password Hashing Algorithm used the hash the password before storing in the userstore. |
-| MaxUserNameListLength | Controls the number of users listed in the user store of a WSO2 product. This is useful when you have a large number of users and don't want to list them all. Setting this property to 0 displays all users. <br/><br/> Default: 100 |
-| MaxRoleNameListLength | Controls the number of roles listed in the user store of a WSO2 product. This is useful when you have a large number of roles and don't want to list them all. Setting this property to 0 displays all roles. <br/><br/> Default: 100 |
+| ReadGroups | This Indicates whether groups should be read from the user store. <br/><br/> Possible values: <br/> `true`: Read groups from user store. <br/> `false`: Do not read groups from user store |
+| WriteGroups | Indicates whether to write groups to the user store. <br/><br/> Possible values: <br/> `true`: Write groups to user store. <br/> `false`: Don’t write groups to user store. Therefore, only internal roles can be created. |
+| Disabled | Indicates whether to deactivate the user store. If you need to temporarily deactivate a user store, you can use this property. If you disable the user store using the disable option it also will set this parameter. <br/> Default: `false`. <br/><br/> Possible values: <br/> `true` : Disable user store temporarily. |
+| UserNameAttribute | The name of the attribute used to identify the user name of the user entry. |
+| PasswordAttribute | The name of the attribute used to identify the password of the user entry. |
+| MembershipAttribute | This is an optional property. If you have specified a value for `MembershipTypeOfRoles`, you need to set this property and define the attribute that contain the distinguished names of user objects that are in a role. |
+| RoleNameAttribute | The name of the attribute used to identify the role name of the role entry. |
+| MemberOfAttribute | This is an optional property. <br/><br/> If you have specified a value for `MembershipTypeOfRoles`, you need to set this property and define the attribute that contain the distinguished names of role objects that the user is assigned to. |
+| UserNameJavaRegEx | The regular expression used by back-end components for user name validation. By default, strings with non-empty characters that have a length of 3 to 30 are allowed. You can specify uppercase characters, lowercase characters, numbers and also ASCII values in the RegEx. <br/><br/> Default: `[a-zA-Z0-9._\-|//]{3,30}$`|
+| UserNameJavaScriptRegEx | The regular expression used by front-end components for user name validation. <br/><br/> Default: `^[\S]{3,30}$`|
+| UsernameJavaRegExViolationErrorMsg | Error message when the user name does not match `UsernameJavaRegEx` |
+| PasswordJavaRegEx | The regular expression used by back-end components for password validation. By default, strings with non-empty characters that have a length of 5 to 30 are allowed. You can specify uppercase characters, lowercase characters, numbers and also ASCII values in the RegEx. <br/><br/> Default: `^[\S]{5,30}$` |
+| PasswordJavaScriptRegEx | The regular expression used by front-end components for password validation. <br/><br/> Default: `^[\S]{5,30}$` |
+| PasswordJavaRegExViolationErrorMsg | Error message when the password does not match `passwordJavaRegEx` |
+| RoleNameJavaRegEx | The regular expression used by back-end components for role name validation. By default, strings with non-empty characters that have a length of 3 to 30 are allowed. You can specify uppercase characters, lowercase characters, numbers and also ASCII values in the RegEx. <br/><br/> Default: `[a-zA-Z0-9._-|//]{3,30}$` |
+| RoleNameJavaScriptRegEx | The regular expression used by front-end components for role name validation. |
+| PasswordHashMethod | The password hashing algorithm used to hash passwords before storing in the user store. |
+| MaxUserNameListLength | Controls the number of users listed in the user store. This is useful when you have a large number of users and you do not want to list them all. You can set this property to 0 to displays all users. <br/><br/> Default: 100 |
+| MaxRoleNameListLength | Controls the number of roles listed in the user store. This is useful when you have a large number of roles and do not want to list them all. You can set this property to 0 to displays all roles. <br/><br/> Default: 100 |
 
-
-
->> <b>NOTE : To get the list of users/roles, we are performing listObjectChildren rest api operation. With this we can't guarantee that all object children of PathToUsers/PathToRoles are "USERS" facet or "ROLES" facet.
-And also, we maintain link name of each object as object name.
-So, If we want to ensure that all object children are USERS/ROLES facet or if we want to get the object name from object rather that getting the link name, we need to have other rest api call with listObjectAttributes operation. Due to this additional network calls, we have some limitations as mentioned above.</b>
+> **NOTE**: If you want to retrieve all the users and roles, you can use the listObjectChildren REST API operation. Using the listObjectChildren operation does not guarantee that all child objects of `PathToUsers` or `PathToRoles` belong to the USERS facet or ROLES facet. This also maintains the link name of each object as the object name. 
+Therefore, if you want to ensure that all child objects belong to the USERS facet or ROLES facet, and you want to get the object name from the object rather than getting the link name, you need to have other REST API calls with the listObjectAttributes operation. However, the additional network calls in this approach results in the mentioned limitations.
