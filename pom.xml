@@ -27,7 +27,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.wso2.carbon.identity.userstore.aws</groupId>
     <artifactId>identity-userstore-aws</artifactId>
-    <version>1.0.2-SNAPSHOT</version>
+    <version>1.0.2</version>
     <packaging>pom</packaging>
     <name>WSO2 Carbon - AWS Cloud Directory service over the REST based User Manager Module</name>
     <url>http://wso2.org</url>
@@ -37,7 +37,7 @@
         <developerConnection>scm:git:https://github.com/wso2-extensions/identity-userstore-aws.git
         </developerConnection>
         <connection>scm:git:https://github.com/wso2-extensions/identity-userstore-aws.git</connection>
-        <tag>HEAD</tag>
+        <tag>v1.0.2</tag>
     </scm>
 
     <modules>
