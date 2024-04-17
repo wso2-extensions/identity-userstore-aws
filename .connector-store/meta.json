@@ -8,5 +8,14 @@
     "labels": [
         "AWS-user-store"
     ],
-    "releases": []
+    "releases": [
+        {
+            "tagName": "1.0.0",
+            "products": [
+                "IS 5.5.0",
+                "IS 5.6.0",
+                "IS 5.7.0"
+            ]
+        }
+    ]
 }
