@@ -1,0 +1,17 @@
+{
+    "name": "AWS User Store",
+    "owner": "WSO2",
+    "category": "User Store",
+    "documentationUrl": "https://github.com/wso2-extensions/identity-userstore-aws/blob/master/README.md",
+    "description": "This extension will allow users to use AWS cloud directory as the user store for WSO2 IS using REST API. Cloud Directory is a specialized graph-based directory store that provides a foundational building block for developers. With Cloud Directory, we can organize directory objects into multiple hierarchies to support many organizational pivots and relationships across directory information. This AWS user store extension can be used as both primary and secondary user store for WSO2 IS.",
+    "status": "Active",
+    "labels": ["AWS-user-store"],
+    "releases": [
+        {
+            "tagName": "1.0.0",
+            "products": [
+                "IS 5.7.0"
+            ]
+        }
+    ]
+}
